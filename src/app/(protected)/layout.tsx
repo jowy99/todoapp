@@ -29,7 +29,7 @@ export default async function ProtectedLayout({
   return (
     <div className="min-h-screen pb-6">
       <header className="border-border/80 bg-surface/85 sticky top-0 z-40 border-b backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
+        <div className="mx-auto flex w-full max-w-[1700px] flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-5">
             <Link
               href="/"
@@ -51,7 +51,7 @@ export default async function ProtectedLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl px-4 py-7 sm:px-6">{children}</main>
+      <main className="mx-auto w-full max-w-[1700px] px-4 py-7 sm:px-6">{children}</main>
     </div>
   );
 }
