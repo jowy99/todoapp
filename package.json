@@ -11,6 +11,8 @@
     "start": "next start",
     "db:create": "tsx scripts/create-db.ts",
     "db:check": "tsx scripts/check-db.ts",
+    "db:seed": "tsx prisma/seed.ts",
+    "seed": "pnpm db:seed",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
