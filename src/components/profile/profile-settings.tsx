@@ -62,10 +62,10 @@ export function ProfileSettings({ email, initialProfile }: ProfileSettingsProps)
   }
 
   return (
-    <section className="space-y-6">
-      <header className="border-border/80 bg-surface/92 overflow-hidden rounded-[1.75rem] border shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur">
+    <section className="space-y-4 sm:space-y-6">
+      <header className="border-border/80 bg-surface/92 overflow-hidden rounded-[1.4rem] border shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur sm:rounded-[1.75rem]">
         <div
-          className="h-36 w-full bg-gradient-to-r from-teal-700 via-cyan-600 to-orange-500"
+          className="h-28 w-full bg-gradient-to-r from-teal-700 via-cyan-600 to-orange-500 sm:h-36"
           style={
             profile.bannerUrl
               ? {
@@ -76,9 +76,9 @@ export function ProfileSettings({ email, initialProfile }: ProfileSettingsProps)
               : undefined
           }
         />
-        <div className="px-5 pb-5">
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
           <div className="-mt-10 flex items-end justify-between gap-3">
-            <div className="border-surface flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 bg-slate-200 text-lg font-black text-slate-700 shadow-[0_12px_26px_-18px_rgb(15_23_42/0.8)]">
+            <div className="border-surface flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-4 bg-slate-200 text-base font-black text-slate-700 shadow-[0_12px_26px_-18px_rgb(15_23_42/0.8)] sm:h-20 sm:w-20 sm:text-lg">
               {profile.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={profile.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
@@ -87,7 +87,7 @@ export function ProfileSettings({ email, initialProfile }: ProfileSettingsProps)
               )}
             </div>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold sm:text-xs ${
                 profile.isPublic ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700"
               }`}
             >
@@ -97,7 +97,7 @@ export function ProfileSettings({ email, initialProfile }: ProfileSettingsProps)
           <p className="text-primary-strong mt-3 text-xs font-semibold tracking-[0.12em] uppercase">
             Perfil
           </p>
-          <h1 className="mt-3 text-2xl font-black tracking-tight">
+          <h1 className="mt-3 text-xl font-black tracking-tight sm:text-2xl">
             {profile.displayName.trim() || "Sin nombre visible"}
           </h1>
           <p className="text-muted text-sm">{email}</p>
@@ -118,7 +118,7 @@ export function ProfileSettings({ email, initialProfile }: ProfileSettingsProps)
 
       <form
         onSubmit={handleSave}
-        className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-5 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)]"
+        className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5"
       >
         <h2 className="text-lg font-bold">Editar perfil</h2>
         <label className="block space-y-1">
@@ -180,7 +180,7 @@ export function ProfileSettings({ email, initialProfile }: ProfileSettingsProps)
           <button
             type="submit"
             disabled={isSaving}
-            className="bg-primary-strong hover:bg-primary rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60"
+            className="bg-primary-strong hover:bg-primary inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60 sm:w-auto"
           >
             {isSaving ? "Guardando..." : "Guardar perfil"}
           </button>

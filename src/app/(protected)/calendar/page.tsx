@@ -141,10 +141,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   });
 
   const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+  const mobileGroups = Array.from(tasksByDay.entries()).sort(([a], [b]) => a - b);
 
   return (
-    <section className="space-y-6">
-      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.75rem] border p-6 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur">
+    <section className="space-y-4 sm:space-y-6">
+      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur sm:rounded-[1.75rem] sm:p-6">
         <div
           aria-hidden
           className="bg-primary/14 pointer-events-none absolute -top-16 right-10 h-36 w-36 rounded-full blur-2xl"
@@ -156,7 +157,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         <p className="text-primary-strong text-sm font-semibold tracking-wide uppercase">
           Calendario
         </p>
-        <h1 className="text-foreground mt-2 text-3xl font-black tracking-tight">
+        <h1 className="text-foreground mt-2 text-2xl font-black tracking-tight sm:text-3xl">
           {monthFormatter.format(currentMonthDate)}
         </h1>
         <p className="text-muted mt-2 text-sm">
@@ -165,27 +166,59 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Link
             href={`/calendar?month=${toMonthParam(prevMonth)}`}
-            className="border-border/80 hover:bg-surface-strong rounded-xl border px-3 py-2 text-sm font-semibold transition"
+            className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center rounded-xl border px-3 py-2 text-sm font-semibold transition"
           >
             Mes anterior
           </Link>
           <Link
             href={`/calendar?month=${toMonthParam(new Date())}`}
-            className="bg-primary-strong hover:bg-primary rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition"
+            className="bg-primary-strong hover:bg-primary inline-flex min-h-11 items-center rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition"
           >
             Hoy
           </Link>
           <Link
             href={`/calendar?month=${toMonthParam(nextMonth)}`}
-            className="border-border/80 hover:bg-surface-strong rounded-xl border px-3 py-2 text-sm font-semibold transition"
+            className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center rounded-xl border px-3 py-2 text-sm font-semibold transition"
           >
             Mes siguiente
           </Link>
         </div>
       </header>
 
-      <div className="border-border/80 bg-surface/85 rounded-2xl border p-3 shadow-[0_20px_40px_-30px_rgb(15_23_42/0.75)]">
-        <div className="grid grid-cols-7 gap-2">
+      <section className="space-y-3 md:hidden">
+        {mobileGroups.length === 0 ? (
+          <p className="border-border/80 bg-surface/70 text-muted rounded-xl border px-4 py-3 text-sm">
+            No hay tareas con fecha para este mes.
+          </p>
+        ) : (
+          mobileGroups.map(([day, dayTasks]) => (
+            <article
+              key={day}
+              className="border-border/80 bg-surface/90 rounded-xl border p-3 shadow-[0_12px_28px_-24px_rgb(15_23_42/0.78)]"
+            >
+              <p className="text-sm font-bold">
+                {day} · {monthFormatter.format(currentMonthDate)}
+              </p>
+              <div className="mt-2 space-y-1.5">
+                {dayTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className={`rounded-lg border px-2.5 py-2 text-xs ${priorityTone(task.priority)} ${
+                      task.isCompleted ? "line-through opacity-60" : ""
+                    }`}
+                  >
+                    <p className="truncate font-semibold">{task.title}</p>
+                    <p className="mt-0.5 text-[11px]">{timeFormatter.format(task.dueDate)}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))
+        )}
+      </section>
+
+      <div className="border-border/80 bg-surface/85 hidden overflow-x-auto rounded-2xl border p-3 shadow-[0_20px_40px_-30px_rgb(15_23_42/0.75)] md:block">
+        <div className="grid min-w-[760px] grid-cols-7 gap-2 lg:min-w-0">
           {weekDays.map((day) => (
             <p key={day} className="text-muted px-2 py-1 text-xs font-bold tracking-wide uppercase">
               {day}
@@ -200,7 +233,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             return (
               <article
                 key={index}
-                className={`min-h-36 rounded-xl border p-2 ${
+                className={`min-h-32 rounded-xl border p-2 lg:min-h-36 ${
                   isVisibleMonth
                     ? "border-border/80 bg-surface/95 shadow-[0_10px_24px_-22px_rgb(15_23_42/0.9)]"
                     : "border-transparent bg-transparent"

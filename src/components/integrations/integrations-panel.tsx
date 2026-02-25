@@ -165,8 +165,8 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
   }
 
   return (
-    <section className="space-y-6">
-      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.75rem] border p-6 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur">
+    <section className="space-y-4 sm:space-y-6">
+      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur sm:rounded-[1.75rem] sm:p-6">
         <div
           aria-hidden
           className="bg-primary/14 pointer-events-none absolute -top-14 right-10 h-36 w-36 rounded-full blur-2xl"
@@ -178,7 +178,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
         <p className="text-primary-strong text-sm font-semibold tracking-wide uppercase">
           Integraciones
         </p>
-        <h1 className="text-foreground mt-2 text-3xl font-black tracking-tight">
+        <h1 className="text-foreground mt-2 text-2xl font-black tracking-tight sm:text-3xl">
           Google Calendar, ICS y Shortcuts
         </h1>
         <p className="text-muted mt-2 text-sm">
@@ -202,7 +202,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
         </p>
       ) : null}
 
-      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-5 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)]">
+      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5">
         <h2 className="text-xl font-bold">Google Calendar (OAuth)</h2>
         {!status ? (
           <p className="text-muted text-sm">Cargando estado...</p>
@@ -226,10 +226,10 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
             {status.google.calendarId ? (
               <p className="text-muted text-xs">Calendar ID: {status.google.calendarId}</p>
             ) : null}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <a
                 href="/api/integrations/google/connect"
-                className="bg-primary-strong hover:bg-primary rounded-xl px-4 py-2 text-sm font-semibold text-white transition"
+                className="bg-primary-strong hover:bg-primary inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition"
               >
                 {status.google.connected ? "Reconectar Google" : "Conectar Google"}
               </a>
@@ -237,7 +237,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
                 type="button"
                 disabled={isBusy || !status.google.connected}
                 onClick={() => void handleGoogleSync()}
-                className="border-border/80 hover:bg-surface-strong rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
               >
                 Sync manual
               </button>
@@ -245,7 +245,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
                 type="button"
                 disabled={isBusy || !status.google.connected}
                 onClick={() => void handleGoogleDisconnect()}
-                className="border-danger/30 text-danger hover:bg-danger/10 rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+                className="border-danger/30 text-danger hover:bg-danger/10 inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
               >
                 Desconectar
               </button>
@@ -254,7 +254,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
         )}
       </section>
 
-      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-5 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)]">
+      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5">
         <h2 className="text-xl font-bold">Apple Calendar (ICS privado)</h2>
         {!status ? (
           <p className="text-muted text-sm">Cargando...</p>
@@ -268,11 +268,11 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
                 className="border-border/80 w-full rounded-xl border bg-white/95 px-3 py-2 font-mono text-xs"
               />
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 onClick={() => void copyToClipboard(status.ics.feedUrl, "Feed ICS")}
-                className="border-border/80 hover:bg-surface-strong rounded-xl border px-4 py-2 text-sm font-semibold transition"
+                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition"
               >
                 Copiar URL
               </button>
@@ -280,7 +280,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleRotateIcs()}
-                className="border-border/80 hover:bg-surface-strong rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
               >
                 Rotar token ICS
               </button>
@@ -289,7 +289,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
         )}
       </section>
 
-      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-5 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)]">
+      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5">
         <h2 className="text-xl font-bold">Webhook para Shortcuts</h2>
         {!status ? (
           <p className="text-muted text-sm">Cargando...</p>
@@ -303,11 +303,11 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
                 className="border-border/80 w-full rounded-xl border bg-white/95 px-3 py-2 font-mono text-xs"
               />
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 onClick={() => void copyToClipboard(status.webhook.ingestUrl, "Webhook URL")}
-                className="border-border/80 hover:bg-surface-strong rounded-xl border px-4 py-2 text-sm font-semibold transition"
+                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition"
               >
                 Copiar endpoint
               </button>
@@ -315,12 +315,12 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleRotateWebhook()}
-                className="border-border/80 hover:bg-surface-strong rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
               >
                 Rotar token webhook
               </button>
             </div>
-            <pre className="border-border overflow-auto rounded-xl border bg-slate-900 p-3 text-xs text-slate-100">
+            <pre className="border-border overflow-auto rounded-xl border bg-slate-900 p-3 text-[11px] text-slate-100 sm:text-xs">
               {`POST ${status.webhook.ingestUrl}
 {
   "title": "Comprar pan",
@@ -333,21 +333,21 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
         )}
       </section>
 
-      <section className="border-border/80 bg-surface/90 space-y-3 rounded-2xl border p-5 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)]">
+      <section className="border-border/80 bg-surface/90 space-y-3 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5">
         <h2 className="text-xl font-bold">Exportaciones</h2>
         {!status ? (
           <p className="text-muted text-sm">Cargando...</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <a
               href={status.export.jsonUrl}
-              className="border-border/80 hover:bg-surface-strong rounded-xl border px-4 py-2 text-sm font-semibold transition"
+              className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition"
             >
               Descargar JSON
             </a>
             <a
               href={status.export.csvUrl}
-              className="border-border/80 hover:bg-surface-strong rounded-xl border px-4 py-2 text-sm font-semibold transition"
+              className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition"
             >
               Descargar CSV
             </a>

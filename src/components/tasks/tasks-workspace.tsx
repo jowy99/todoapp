@@ -201,6 +201,22 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
   }, []);
 
   useEffect(() => {
+    const shouldLockScroll =
+      (isMobileSidebarOpen || Boolean(selectedTask)) && window.innerWidth < 1024;
+
+    if (!shouldLockScroll) {
+      document.body.style.overflow = "";
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileSidebarOpen, selectedTask]);
+
+  useEffect(() => {
     if (!selectedTask) {
       return;
     }
@@ -503,17 +519,6 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
         </div>
       ) : null}
 
-      <button
-        type="button"
-        aria-label="Abrir menu"
-        onClick={() => setIsMobileSidebarOpen(true)}
-        className="todo-mobile-toggle inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-[0_12px_24px_-18px_rgb(15_23_42/0.85)]"
-      >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
-          <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" strokeWidth="1.8" />
-        </svg>
-      </button>
-
       <AppShell
         sidebarWidth={isSidebarCollapsed ? "72px" : "280px"}
         showDetail={Boolean(selectedTask)}
@@ -528,14 +533,30 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
           />
         }
         main={
-          <section className="h-full space-y-4 px-4 py-5 md:px-7 md:py-7">
+          <section className="todo-main-pane space-y-4 px-3 py-4 sm:px-4 sm:py-5 md:px-7 md:py-7">
             <div className="flex items-end justify-between border-b border-slate-200 pb-4">
-              <h2 className="text-5xl font-black tracking-tight text-slate-900">Today</h2>
-              <p className="text-3xl font-semibold text-slate-500">{pendingTasks}</p>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  aria-label="Abrir menu"
+                  onClick={() => setIsMobileSidebarOpen(true)}
+                  className="todo-main-menu-btn inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-[0_14px_24px_-18px_rgb(15_23_42/0.85)] transition hover:bg-slate-50 md:hidden"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                    <path d="M6 7h12M6 12h12M6 17h12" stroke="currentColor" strokeWidth="2" />
+                  </svg>
+                </button>
+                <h2 className="todo-main-title text-3xl font-black tracking-tight text-slate-900 sm:text-4xl md:text-5xl">
+                  Today
+                </h2>
+              </div>
+              <p className="todo-main-count text-2xl font-semibold text-slate-500 sm:text-3xl">
+                {pendingTasks}
+              </p>
             </div>
 
             <form onSubmit={handleCreateTask} className="space-y-3 border-b border-slate-200 pb-4">
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+              <div className="todo-quick-add flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 sm:flex-nowrap">
                 <span className="text-xl leading-none text-slate-500" aria-hidden>
                   +
                 </span>
@@ -546,7 +567,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                     setTaskForm((prev) => ({ ...prev, title: event.target.value }))
                   }
                   placeholder="Add New Task"
-                  className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-[15px] outline-none placeholder:text-slate-400"
+                  className="min-w-0 flex-1 basis-[180px] border-0 bg-transparent px-0 py-0 text-[15px] outline-none placeholder:text-slate-400"
                 />
                 <button
                   type="submit"
@@ -809,7 +830,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                 return (
                   <li
                     key={task.id}
-                    className={`border-b border-slate-200 p-4 last:border-b-0 ${
+                    className={`border-b border-slate-200 p-3 last:border-b-0 sm:p-4 ${
                       isEditing
                         ? "bg-slate-50/90 shadow-[inset_3px_0_0_0_rgb(15_23_42)]"
                         : "bg-white hover:bg-slate-50/70"
@@ -831,7 +852,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                         />
                         <div className="min-w-0 text-left">
                           <p
-                            className={`truncate text-[22px] leading-tight font-semibold ${
+                            className={`truncate text-base leading-tight font-semibold sm:text-lg md:text-[22px] ${
                               task.isCompleted ? "text-slate-400 line-through" : "text-slate-900"
                             }`}
                           >

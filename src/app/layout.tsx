@@ -26,7 +26,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${manrope.variable} ${ibmPlexMono.variable} antialiased`}>{children}</body>
+      <body
+        className={`${manrope.variable} ${ibmPlexMono.variable} safe-px safe-pt safe-pb min-h-[100dvh] antialiased`}
+      >
+        {children}
+      </body>
     </html>
   );
 }

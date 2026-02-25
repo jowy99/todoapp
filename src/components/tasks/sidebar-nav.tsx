@@ -21,7 +21,7 @@ type SidebarNavProps = {
   mobile?: boolean;
 };
 
-type RowItemProps = {
+type SidebarNavItemProps = {
   label: string;
   icon: ReactNode;
   count?: number;
@@ -29,113 +29,203 @@ type RowItemProps = {
   collapsed: boolean;
 };
 
-function MenuIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-      <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
+type IconProps = {
+  className?: string;
+};
 
-function SearchIcon() {
+function MenuIcon({ className = "h-5 w-5" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-      <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-      <path d="m16 16 3.5 3.5" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function TasksIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
       <path
-        d="m7.5 7 2 2 3.5-3.5M7.5 12 9.5 14l3.5-3.5M6 18h12"
+        d="M5 7h14M5 12h14M5 17h14"
         stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="1.9"
+        strokeLinecap="round"
       />
     </svg>
   );
 }
 
-function TodayIcon() {
+function CloseIcon({ className = "h-5 w-5" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-      <path d="M7 6h10M7 11h10M7 16h6" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="5" cy="6" r="1" fill="currentColor" />
-      <circle cx="5" cy="11" r="1" fill="currentColor" />
-      <circle cx="5" cy="16" r="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function CalendarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-      <rect x="4" y="6" width="16" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M8 4v4M16 4v4M4 10h16" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function StickyIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-      <path d="M6 5h12v14l-4-4H6V5Z" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="9" cy="7" r="1.6" fill="currentColor" />
-      <circle cx="15" cy="12" r="1.6" fill="currentColor" />
-      <circle cx="11" cy="17" r="1.6" fill="currentColor" />
-    </svg>
-  );
-}
-
-function SignOutIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
       <path
-        d="M14 7h6v10h-6M10 12h10M10 12l3-3M10 12l3 3M4 5h7v14H4V5Z"
+        d="m7 7 10 10M17 7 7 17"
         stroke="currentColor"
-        strokeWidth="1.8"
+        strokeWidth="1.9"
+        strokeLinecap="round"
       />
     </svg>
   );
 }
 
-function PlusIcon() {
+function TasksIcon({ className = "h-5 w-5" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" />
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path
+        d="M8 6h11M8 12h11M8 18h11"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      <circle cx="4.5" cy="6" r="1.2" fill="currentColor" />
+      <circle cx="4.5" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="4.5" cy="18" r="1.2" fill="currentColor" />
     </svg>
   );
 }
 
-function RowItem({ label, icon, count, active = false, collapsed }: RowItemProps) {
+function PendingIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.9" />
+      <path
+        d="M12 8v4l2.8 2"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CalendarIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <rect x="4" y="6" width="16" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.9" />
+      <path
+        d="M8 4v4M16 4v4M4 10h16"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function StickyIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path
+        d="M6 4h12v16l-4-3.5H6V4Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function FolderIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path
+        d="M3 8.5A2.5 2.5 0 0 1 5.5 6H10l2 2h6.5A2.5 2.5 0 0 1 21 10.5v7A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-9Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TagIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path
+        d="M12.2 4H6.5A2.5 2.5 0 0 0 4 6.5v5.7a2.5 2.5 0 0 0 .73 1.77l5.3 5.3a2.5 2.5 0 0 0 3.54 0l5.7-5.7a2.5 2.5 0 0 0 0-3.54l-5.3-5.3A2.5 2.5 0 0 0 12.2 4Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinejoin="round"
+      />
+      <circle cx="8.2" cy="8.2" r="1.35" fill="currentColor" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path
+        d="M12 3v2.2M12 18.8V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.2M18.8 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.9" />
+    </svg>
+  );
+}
+
+function SignOutIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path
+        d="M9 4H5.8A1.8 1.8 0 0 0 4 5.8v12.4A1.8 1.8 0 0 0 5.8 20H9M14 16l4-4m0 0-4-4m4 4H9"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PlusIcon({ className = "h-5 w-5" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SidebarNavItem({ label, icon, count, active = false, collapsed }: SidebarNavItemProps) {
+  const counterText = count !== undefined && count > 99 ? "99+" : count;
+
   return (
     <button
       type="button"
       title={collapsed ? label : undefined}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`flex w-full items-center rounded-xl border px-3 py-2.5 text-sm transition ${
+      className={`group relative flex min-h-11 w-full items-center rounded-2xl border px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
         active
-          ? "border-transparent bg-slate-100 text-slate-900"
-          : "border-transparent text-slate-700 hover:bg-slate-100/70"
-      } ${collapsed ? "justify-center px-0" : "gap-3"}`}
+          ? "border-slate-200 bg-slate-100 text-slate-900"
+          : "border-transparent text-slate-600 hover:border-slate-200/90 hover:bg-slate-50 hover:text-slate-900"
+      } ${collapsed ? "justify-center px-0" : "gap-3 py-2.5"}`}
     >
-      <span className="text-slate-500">{icon}</span>
-      {collapsed ? null : <span className="truncate">{label}</span>}
-      {collapsed || count === undefined ? null : (
-        <span className="ml-auto text-xs font-medium text-slate-500">{count}</span>
+      <span
+        className={`relative inline-flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+          active
+            ? "bg-white text-slate-900 shadow-[0_8px_16px_-12px_rgb(15_23_42/0.9)]"
+            : "text-slate-500 group-hover:text-slate-700"
+        }`}
+      >
+        {icon}
+        {collapsed && counterText !== undefined ? (
+          <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold leading-none text-white">
+            {counterText}
+          </span>
+        ) : null}
+      </span>
+
+      {collapsed ? null : <span className="min-w-0 truncate">{label}</span>}
+
+      {collapsed || counterText === undefined ? null : (
+        <span className="ml-auto inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-slate-100 px-2 text-[11px] font-semibold text-slate-500">
+          {counterText}
+        </span>
       )}
     </button>
+  );
+}
+
+function sectionLabel(label: string) {
+  return (
+    <p className="px-2 text-[11px] font-semibold tracking-[0.16em] text-slate-400" aria-hidden>
+      {label}
+    </p>
   );
 }
 
@@ -149,54 +239,45 @@ export function SidebarNav({
   mobile = false,
 }: SidebarNavProps) {
   return (
-    <div className={`flex h-full flex-col ${collapsed ? "px-2.5 py-4" : "px-5 py-5"}`}>
+    <div className={`flex h-full flex-col ${collapsed ? "px-2.5 py-4" : "px-4 py-4 sm:px-5 sm:py-5"}`}>
       <div className={`mb-4 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
         {collapsed ? null : (
-          <h2 className="text-[40px] font-bold tracking-tight text-slate-900">Menu</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-[40px]">Menu</h2>
         )}
         <button
           type="button"
           aria-label={mobile ? "Cerrar menu" : collapsed ? "Expandir menu" : "Colapsar menu"}
           onClick={onToggle}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-[0_12px_20px_-16px_rgb(15_23_42/0.9)] transition hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
         >
-          <MenuIcon />
+          {mobile ? <CloseIcon /> : <MenuIcon />}
         </button>
       </div>
 
-      <button
-        type="button"
-        aria-label="Buscar"
-        title={collapsed ? "Search" : undefined}
-        className={`mb-5 flex items-center rounded-xl border border-slate-200 bg-white text-sm text-slate-500 ${collapsed ? "h-10 w-10 justify-center self-center px-0" : "gap-2 px-3 py-2.5"}`}
-      >
-        <SearchIcon />
-        {collapsed ? null : <span>Search</span>}
-      </button>
-
       <div
-        className={`scrollbar-thin flex-1 overflow-y-auto ${collapsed ? "space-y-4" : "space-y-6"}`}
+        className={`scrollbar-thin flex-1 overflow-y-auto ${collapsed ? "space-y-4" : "space-y-6"} ${mobile ? "pt-2" : ""}`}
       >
         <section className="space-y-1">
-          {collapsed ? null : (
-            <p className="px-2 text-[11px] font-semibold tracking-[0.14em] text-slate-400">TASKS</p>
-          )}
-          <RowItem label="Upcoming" icon={<TasksIcon />} count={totalCount} collapsed={collapsed} />
-          <RowItem
+          {collapsed ? null : sectionLabel("TASKS")}
+          <SidebarNavItem
+            label="All Tasks"
+            icon={<TasksIcon />}
+            count={totalCount}
+            collapsed={collapsed}
+          />
+          <SidebarNavItem
             label="Today"
-            icon={<TodayIcon />}
+            icon={<PendingIcon />}
             count={todayCount}
             collapsed={collapsed}
             active
           />
-          <RowItem label="Calendar" icon={<CalendarIcon />} collapsed={collapsed} />
-          <RowItem label="Sticky Wall" icon={<StickyIcon />} collapsed={collapsed} />
+          <SidebarNavItem label="Calendar" icon={<CalendarIcon />} collapsed={collapsed} />
+          <SidebarNavItem label="Sticky Wall" icon={<StickyIcon />} collapsed={collapsed} />
         </section>
 
         <section className="space-y-1.5">
-          {collapsed ? null : (
-            <p className="px-2 text-[11px] font-semibold tracking-[0.14em] text-slate-400">LISTS</p>
-          )}
+          {collapsed ? null : sectionLabel("LISTS")}
           {lists.length === 0 && !collapsed ? (
             <p className="px-2 text-xs text-slate-400">Sin listas</p>
           ) : (
@@ -206,19 +287,29 @@ export function SidebarNav({
                 type="button"
                 title={collapsed ? list.name : undefined}
                 aria-label={list.name}
-                className={`flex w-full items-center rounded-xl border border-transparent py-2 text-sm text-slate-700 transition hover:bg-slate-100/70 ${
-                  collapsed ? "justify-center px-0" : "gap-3 px-3"
+                className={`group flex min-h-11 w-full items-center rounded-2xl border border-transparent text-sm text-slate-700 transition hover:border-slate-200/90 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
+                  collapsed ? "justify-center px-0" : "gap-2.5 px-3 py-2.5"
                 }`}
               >
-                <span
-                  className="h-2.5 w-2.5 rounded-sm"
-                  style={{ backgroundColor: list.color ?? "#f87171" }}
-                  aria-hidden
-                />
+                <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 group-hover:text-slate-700">
+                  <FolderIcon className="h-[19px] w-[19px]" />
+                  <span
+                    className="absolute right-[7px] top-[8px] h-2.5 w-2.5 rounded-full ring-2 ring-white"
+                    style={{ backgroundColor: list.color ?? "#f87171" }}
+                    aria-hidden
+                  />
+                  {collapsed ? (
+                    <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-bold leading-none text-white">
+                      {list.count > 99 ? "99+" : list.count}
+                    </span>
+                  ) : null}
+                </span>
                 {collapsed ? null : (
                   <>
-                    <span className="truncate">{list.name}</span>
-                    <span className="ml-auto text-xs text-slate-500">{list.count}</span>
+                    <span className="min-w-0 truncate">{list.name}</span>
+                    <span className="ml-auto inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-slate-100 px-2 text-[11px] font-semibold text-slate-500">
+                      {list.count}
+                    </span>
                   </>
                 )}
               </button>
@@ -229,21 +320,19 @@ export function SidebarNav({
             type="button"
             aria-label="Add New List"
             title={collapsed ? "Add New List" : undefined}
-            className={`flex w-full items-center rounded-xl border border-transparent py-2 text-sm text-slate-700 transition hover:bg-slate-100/70 ${
-              collapsed ? "justify-center px-0" : "gap-3 px-3"
+            className={`group flex min-h-11 w-full items-center rounded-2xl border border-dashed border-slate-200 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
+              collapsed ? "justify-center px-0" : "gap-2.5 px-3 py-2.5"
             }`}
           >
-            <span className="text-slate-500">
-              <PlusIcon />
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 group-hover:text-slate-700">
+              <PlusIcon className="h-[19px] w-[19px]" />
             </span>
             {collapsed ? null : <span>Add New List</span>}
           </button>
         </section>
 
         <section className="space-y-2">
-          {collapsed ? null : (
-            <p className="px-2 text-[11px] font-semibold tracking-[0.14em] text-slate-400">TAGS</p>
-          )}
+          {collapsed ? null : sectionLabel("TAGS")}
           <div className={`flex flex-wrap gap-2 ${collapsed ? "justify-center" : ""}`}>
             {tags.slice(0, 4).map((tag, index) => (
               <button
@@ -251,8 +340,8 @@ export function SidebarNav({
                 type="button"
                 aria-label={tag.name}
                 title={collapsed ? tag.name : undefined}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-700 ${
-                  collapsed ? "h-8 w-8 px-0 py-0" : ""
+                className={`group inline-flex items-center gap-1.5 rounded-xl border border-transparent bg-slate-100/80 text-xs font-semibold text-slate-700 transition hover:border-slate-200 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
+                  collapsed ? "h-10 w-10 justify-center px-0" : "h-9 px-2.5"
                 }`}
                 style={{
                   backgroundColor:
@@ -260,28 +349,35 @@ export function SidebarNav({
                     (index % 3 === 0 ? "#d1fae5" : index % 3 === 1 ? "#fee2e2" : "#dbeafe"),
                 }}
               >
-                {collapsed ? (
-                  <span className="mx-auto block h-2 w-2 rounded-full bg-slate-600" />
-                ) : (
-                  tag.name
-                )}
+                <span
+                  className="h-2.5 w-2.5 rounded-full ring-1 ring-slate-300/50"
+                  style={{
+                    backgroundColor:
+                      tag.color ??
+                      (index % 3 === 0 ? "#10b981" : index % 3 === 1 ? "#fb7185" : "#60a5fa"),
+                  }}
+                  aria-hidden
+                />
+                {collapsed ? <TagIcon className="h-3.5 w-3.5 text-slate-700" /> : <span>{tag.name}</span>}
               </button>
             ))}
             {collapsed ? null : (
               <button
                 type="button"
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
               >
-                + Add Tag
+                <PlusIcon className="h-3.5 w-3.5" />
+                <TagIcon className="h-3.5 w-3.5" />
+                Add Tag
               </button>
             )}
           </div>
         </section>
       </div>
 
-      <div className={`mt-6 space-y-1 ${collapsed ? "" : ""}`}>
-        <RowItem label="Settings" icon={<SettingsIcon />} collapsed={collapsed} />
-        <RowItem label="Sign out" icon={<SignOutIcon />} collapsed={collapsed} />
+      <div className="mt-6 space-y-1">
+        <SidebarNavItem label="Settings" icon={<SettingsIcon />} collapsed={collapsed} />
+        <SidebarNavItem label="Sign out" icon={<SignOutIcon />} collapsed={collapsed} />
       </div>
     </div>
   );

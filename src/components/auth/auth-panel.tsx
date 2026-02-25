@@ -56,7 +56,7 @@ export function AuthPanel() {
   }
 
   return (
-    <section className="border-border/80 bg-surface/90 shadow-primary/10 relative w-full max-w-md overflow-hidden rounded-[2rem] border p-7 shadow-2xl backdrop-blur">
+    <section className="border-border/80 bg-surface/90 shadow-primary/10 relative w-full max-w-md overflow-hidden rounded-[1.6rem] border p-5 shadow-2xl backdrop-blur sm:rounded-[2rem] sm:p-7">
       <div
         aria-hidden
         className="bg-primary/15 pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full blur-2xl"
@@ -69,7 +69,9 @@ export function AuthPanel() {
         <span className="bg-primary/10 text-primary-strong inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
           Local-first
         </span>
-        <h1 className="text-primary-strong text-3xl font-black tracking-tight">Todo Studio</h1>
+        <h1 className="text-primary-strong text-2xl font-black tracking-tight sm:text-3xl">
+          Todo Studio
+        </h1>
         <p className="text-muted text-sm leading-relaxed">
           Gestiona tus tareas locales con seguridad y sincronización futura.
         </p>
@@ -79,7 +81,7 @@ export function AuthPanel() {
         <button
           type="button"
           onClick={() => setMode("login")}
-          className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
+          className={`inline-flex min-h-11 items-center justify-center rounded-full px-3 py-2 text-sm font-semibold transition ${
             mode === "login"
               ? "bg-surface text-foreground shadow-[0_8px_20px_-14px_rgb(15_23_42/0.9)]"
               : "text-muted"
@@ -90,7 +92,7 @@ export function AuthPanel() {
         <button
           type="button"
           onClick={() => setMode("register")}
-          className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
+          className={`inline-flex min-h-11 items-center justify-center rounded-full px-3 py-2 text-sm font-semibold transition ${
             mode === "register"
               ? "bg-surface text-foreground shadow-[0_8px_20px_-14px_rgb(15_23_42/0.9)]"
               : "text-muted"
@@ -148,7 +150,7 @@ export function AuthPanel() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="bg-primary-strong hover:bg-primary w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+          className="bg-primary-strong hover:bg-primary inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? "Procesando..." : submitLabel}
         </button>

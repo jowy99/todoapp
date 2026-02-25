@@ -127,8 +127,8 @@ export function ListsManager({ initialLists }: ListsManagerProps) {
   }
 
   return (
-    <section className="space-y-6">
-      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.75rem] border p-6 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur">
+    <section className="space-y-4 sm:space-y-6">
+      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur sm:rounded-[1.75rem] sm:p-6">
         <div
           aria-hidden
           className="bg-primary/15 pointer-events-none absolute -top-14 right-8 h-32 w-32 rounded-full blur-2xl"
@@ -140,7 +140,7 @@ export function ListsManager({ initialLists }: ListsManagerProps) {
         <p className="text-primary-strong text-sm font-semibold tracking-wide uppercase">
           Listas / Carpetas
         </p>
-        <h1 className="text-foreground mt-2 text-3xl font-black tracking-tight">
+        <h1 className="text-foreground mt-2 text-2xl font-black tracking-tight sm:text-3xl">
           Organización personalizada
         </h1>
         <p className="text-muted mt-2 text-sm">
@@ -167,7 +167,7 @@ export function ListsManager({ initialLists }: ListsManagerProps) {
 
       <form
         onSubmit={handleCreateList}
-        className="border-border/80 bg-surface/90 space-y-3 rounded-2xl border p-5 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)]"
+        className="border-border/80 bg-surface/90 space-y-3 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5"
       >
         <h2 className="text-lg font-bold">Crear lista nueva</h2>
         <input
@@ -190,7 +190,7 @@ export function ListsManager({ initialLists }: ListsManagerProps) {
           <button
             type="submit"
             disabled={isBusy || !name.trim()}
-            className="bg-primary-strong hover:bg-primary rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60"
+            className="bg-primary-strong hover:bg-primary inline-flex min-h-11 items-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60"
           >
             Guardar lista
           </button>
@@ -211,7 +211,7 @@ export function ListsManager({ initialLists }: ListsManagerProps) {
             return (
               <li
                 key={list.id}
-                className="border-border/80 bg-surface/90 rounded-2xl border p-4 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)]"
+                className="border-border/80 bg-surface/90 rounded-2xl border p-3 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)] sm:p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
@@ -225,18 +225,18 @@ export function ListsManager({ initialLists }: ListsManagerProps) {
                       <p className="text-muted text-xs">{list._count.tasks} tareas</p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
                     <button
                       type="button"
                       onClick={() => beginEdit(list)}
-                      className="border-border/80 hover:bg-surface-strong rounded-lg border px-3 py-1.5 text-xs font-semibold transition"
+                      className="border-border/80 hover:bg-surface-strong inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition sm:min-h-9 sm:flex-none"
                     >
                       Editar
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeleteList(list.id)}
-                      className="border-danger/30 text-danger hover:bg-danger/10 rounded-lg border px-3 py-1.5 text-xs font-semibold transition"
+                      className="border-danger/30 text-danger hover:bg-danger/10 inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border px-3 py-1.5 text-xs font-semibold transition sm:min-h-9 sm:flex-none"
                     >
                       Eliminar
                     </button>
@@ -267,14 +267,14 @@ export function ListsManager({ initialLists }: ListsManagerProps) {
                       <button
                         type="submit"
                         disabled={isBusy || !editingName.trim()}
-                        className="bg-primary-strong hover:bg-primary rounded-lg px-3 py-2 text-xs font-semibold text-white transition disabled:opacity-60"
+                        className="bg-primary-strong hover:bg-primary inline-flex min-h-10 items-center rounded-lg px-3 py-2 text-xs font-semibold text-white transition disabled:opacity-60"
                       >
                         Guardar
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
-                        className="border-border/80 hover:bg-surface rounded-lg border px-3 py-2 text-xs font-semibold transition"
+                        className="border-border/80 hover:bg-surface inline-flex min-h-10 items-center rounded-lg border px-3 py-2 text-xs font-semibold transition"
                       >
                         Cancelar
                       </button>

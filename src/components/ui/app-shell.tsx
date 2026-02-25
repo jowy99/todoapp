@@ -18,7 +18,7 @@ export function AppShell({
   return (
     <section
       aria-label="App shell"
-      className={`todo-shell ${showDetail ? "todo-shell--detail" : ""}`}
+      className={`todo-shell w-full max-w-none min-w-0 ${showDetail ? "todo-shell--detail" : ""}`}
       style={{ "--todo-sidebar-width": sidebarWidth } as CSSProperties}
     >
       <aside className="todo-shell-col todo-shell-sidebar">{sidebar}</aside>

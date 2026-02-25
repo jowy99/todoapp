@@ -344,8 +344,8 @@ export function CollaborationHub({
   }, [loadTaskStreams, selectedTaskId]);
 
   return (
-    <section className="space-y-6">
-      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.75rem] border p-6 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur">
+    <section className="space-y-4 sm:space-y-6">
+      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur sm:rounded-[1.75rem] sm:p-6">
         <div
           aria-hidden
           className="bg-primary/14 pointer-events-none absolute -top-14 right-10 h-36 w-36 rounded-full blur-2xl"
@@ -357,7 +357,7 @@ export function CollaborationHub({
         <p className="text-primary-strong text-sm font-semibold tracking-wide uppercase">
           Colaboración
         </p>
-        <h1 className="text-foreground mt-2 text-3xl font-black tracking-tight">
+        <h1 className="text-foreground mt-2 text-2xl font-black tracking-tight sm:text-3xl">
           Listas compartidas y trabajo conjunto
         </h1>
         <p className="text-muted mt-2 text-sm">
@@ -381,11 +381,11 @@ export function CollaborationHub({
             No tienes listas propias para compartir.
           </p>
         ) : null}
-        <div className="grid gap-4">
+        <div className="grid gap-4 xl:grid-cols-2">
           {ownedLists.map((list) => (
             <article
               key={list.id}
-              className="border-border/80 bg-surface/90 rounded-2xl border p-4 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)]"
+              className="border-border/80 bg-surface/90 rounded-2xl border p-3 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)] sm:p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -403,7 +403,7 @@ export function CollaborationHub({
 
               <form
                 onSubmit={(event) => handleInvite(event, list.id)}
-                className="mt-4 flex flex-wrap gap-2"
+                className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
               >
                 <input
                   type="email"
@@ -416,7 +416,7 @@ export function CollaborationHub({
                     }))
                   }
                   placeholder="email@colaborador.com"
-                  className="border-border ring-primary min-w-56 flex-1 rounded-lg border bg-white/95 px-3 py-2 text-sm outline-none focus:ring-2"
+                  className="border-border ring-primary min-w-0 rounded-lg border bg-white/95 px-3 py-2 text-sm outline-none focus:ring-2"
                 />
                 <select
                   value={inviteRole[list.id] ?? "VIEWER"}
@@ -426,7 +426,7 @@ export function CollaborationHub({
                       [list.id]: event.target.value as Role,
                     }))
                   }
-                  className="border-border ring-primary rounded-lg border bg-white/95 px-3 py-2 text-sm outline-none focus:ring-2"
+                  className="border-border ring-primary min-h-11 rounded-lg border bg-white/95 px-3 py-2 text-sm outline-none focus:ring-2"
                 >
                   <option value="VIEWER">VIEWER</option>
                   <option value="EDITOR">EDITOR</option>
@@ -434,7 +434,7 @@ export function CollaborationHub({
                 <button
                   type="submit"
                   disabled={isBusy}
-                  className="bg-primary-strong hover:bg-primary rounded-lg px-3 py-2 text-sm font-semibold text-white transition disabled:opacity-60"
+                  className="bg-primary-strong hover:bg-primary inline-flex min-h-11 items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold text-white transition disabled:opacity-60"
                 >
                   Invitar
                 </button>
@@ -447,19 +447,19 @@ export function CollaborationHub({
                 {list.collaborators.map((member) => (
                   <div
                     key={member.id}
-                    className="border-border bg-surface-strong/60 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+                    className="border-border bg-surface-strong/60 flex flex-col gap-2 rounded-lg border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
                       <p className="text-sm font-semibold">{displayName(member.user)}</p>
                       <p className="text-muted text-xs">{member.user.email}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full items-center gap-2 sm:w-auto">
                       <select
                         value={member.role}
                         onChange={(event) =>
                           void handleRoleChange(list.id, member.id, event.target.value as Role)
                         }
-                        className="border-border/80 rounded-lg border bg-white/95 px-2 py-1 text-xs font-semibold"
+                        className="border-border/80 min-h-10 flex-1 rounded-lg border bg-white/95 px-2 py-1 text-xs font-semibold sm:min-h-9 sm:flex-none"
                       >
                         <option value="VIEWER">VIEWER</option>
                         <option value="EDITOR">EDITOR</option>
@@ -467,7 +467,7 @@ export function CollaborationHub({
                       <button
                         type="button"
                         onClick={() => void handleRemoveCollaborator(list.id, member.id)}
-                        className="border-danger/30 text-danger hover:bg-danger/10 rounded-lg border px-2 py-1 text-xs font-semibold transition"
+                        className="border-danger/30 text-danger hover:bg-danger/10 inline-flex min-h-10 flex-1 items-center justify-center rounded-lg border px-2 py-1 text-xs font-semibold transition sm:min-h-9 sm:flex-none"
                       >
                         Quitar
                       </button>
@@ -487,11 +487,11 @@ export function CollaborationHub({
             Nadie te ha compartido listas todavía.
           </p>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {sharedLists.map((list) => (
               <article
                 key={list.id}
-                className="border-border/80 bg-surface/90 rounded-2xl border p-4 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)]"
+                className="border-border/80 bg-surface/90 rounded-2xl border p-3 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)] sm:p-4"
               >
                 <p className="text-sm font-bold">{list.name}</p>
                 <p className="text-muted mt-1 text-xs">
@@ -515,7 +515,7 @@ export function CollaborationHub({
           </p>
         ) : (
           <>
-            <div className="border-border/80 bg-surface/90 rounded-2xl border p-4 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)]">
+            <div className="border-border/80 bg-surface/90 rounded-2xl border p-3 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)] sm:p-4">
               <label className="block space-y-1 text-sm font-medium">
                 <span>Selecciona tarea</span>
                 <select
@@ -546,7 +546,7 @@ export function CollaborationHub({
                     type="button"
                     disabled={!selectedTask.canEdit || isBusy}
                     onClick={() => void toggleTaskStatus(selectedTask)}
-                    className="bg-primary-strong hover:bg-primary rounded-full px-3 py-1 font-semibold text-white transition disabled:opacity-50"
+                    className="bg-primary-strong hover:bg-primary inline-flex min-h-9 items-center rounded-full px-3 py-1 font-semibold text-white transition disabled:opacity-50"
                   >
                     {selectedTask.isCompleted ? "Marcar pendiente" : "Marcar completada"}
                   </button>
@@ -554,10 +554,10 @@ export function CollaborationHub({
               ) : null}
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <article className="border-border/80 bg-surface/90 rounded-2xl border p-4 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)]">
+            <div className="grid gap-4 xl:grid-cols-2">
+              <article className="border-border/80 bg-surface/90 rounded-2xl border p-3 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)] sm:p-4">
                 <h3 className="text-sm font-bold">Comentarios</h3>
-                <form onSubmit={handleAddComment} className="mt-3 flex gap-2">
+                <form onSubmit={handleAddComment} className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <input
                     value={commentInput}
                     onChange={(event) => setCommentInput(event.target.value)}
@@ -567,12 +567,12 @@ export function CollaborationHub({
                   <button
                     type="submit"
                     disabled={isBusy || !selectedTask}
-                    className="bg-primary-strong hover:bg-primary rounded-lg px-3 py-2 text-sm font-semibold text-white transition disabled:opacity-60"
+                    className="bg-primary-strong hover:bg-primary inline-flex min-h-10 items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold text-white transition disabled:opacity-60 sm:min-h-9"
                   >
                     Enviar
                   </button>
                 </form>
-                <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
+                <div className="mt-3 max-h-60 space-y-2 overflow-auto pr-1 sm:max-h-72">
                   {isLoadingStreams ? <p className="text-muted text-sm">Cargando...</p> : null}
                   {!isLoadingStreams && comments.length === 0 ? (
                     <p className="text-muted text-sm">No hay comentarios.</p>
@@ -592,9 +592,9 @@ export function CollaborationHub({
                 </div>
               </article>
 
-              <article className="border-border/80 bg-surface/90 rounded-2xl border p-4 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)]">
+              <article className="border-border/80 bg-surface/90 rounded-2xl border p-3 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.8)] sm:p-4">
                 <h3 className="text-sm font-bold">Actividad</h3>
-                <div className="mt-3 max-h-96 space-y-2 overflow-auto pr-1">
+                <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1 sm:max-h-96">
                   {isLoadingStreams ? <p className="text-muted text-sm">Cargando...</p> : null}
                   {!isLoadingStreams && activity.length === 0 ? (
                     <p className="text-muted text-sm">Sin eventos por ahora.</p>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogoutButton } from "@/components/auth/logout-button";
 import { MainNav } from "@/components/layout/main-nav";
+import { ProfileMenu } from "@/components/layout/profile-menu";
 import { getCurrentUser } from "@/lib/auth/session";
 
 const navItems = [
@@ -10,7 +10,6 @@ const navItems = [
   { href: "/lists", label: "Listas" },
   { href: "/collaboration", label: "Colaboración" },
   { href: "/integrations", label: "Integraciones" },
-  { href: "/profile", label: "Perfil" },
 ];
 
 export default async function ProtectedLayout({
@@ -27,31 +26,32 @@ export default async function ProtectedLayout({
   const userLabel = user.displayName?.trim() || user.email;
 
   return (
-    <div className="min-h-screen pb-6">
-      <header className="border-border/80 bg-surface/85 sticky top-0 z-40 border-b backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1700px] flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-5">
+    <div className="min-h-[100dvh] w-full pb-6">
+      <header className="app-header border-border/80 bg-surface/95 sticky top-0 z-[90] border-b">
+        <div className="app-header-inner w-full max-w-none px-3 py-3 sm:px-4 sm:py-3.5 md:px-6 lg:mx-auto lg:max-w-[1200px] xl:max-w-[1700px]">
+          <div className="flex items-center gap-3 md:gap-4">
             <Link
               href="/"
-              className="bg-surface text-primary-strong border-border/80 inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-black tracking-tight shadow-[0_10px_24px_-16px_rgb(15_23_42/0.7)]"
+              className="app-brand-link bg-surface text-primary-strong border-primary/55 inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border-2 px-2.5 py-1.5 text-sm font-black tracking-tight shadow-[0_12px_26px_-18px_rgb(15_23_42/0.7)] sm:min-h-10 sm:px-3 sm:text-lg lg:text-2xl"
             >
               <span
                 aria-hidden
-                className="from-primary to-accent inline-block h-2.5 w-2.5 rounded-full bg-gradient-to-r"
+                className="from-primary to-accent inline-block h-2 w-2 rounded-full bg-gradient-to-r"
               />
               Todo Studio
             </Link>
-            <MainNav items={navItems} />
-          </div>
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <p className="bg-surface-strong text-muted hidden rounded-full px-3 py-2 text-xs font-semibold sm:block">
-              {userLabel}
-            </p>
-            <LogoutButton />
+            <div className="app-main-nav-wrap hidden min-w-0 flex-1 md:block">
+              <MainNav items={navItems} />
+            </div>
+            <div className="ml-auto flex items-center">
+              <ProfileMenu userLabel={userLabel} navItems={navItems} />
+            </div>
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1700px] px-4 py-7 sm:px-6">{children}</main>
+      <main className="w-full max-w-none px-3 py-4 sm:px-4 sm:py-5 md:px-6 lg:mx-auto lg:max-w-[1200px] lg:px-7 xl:max-w-[1700px] xl:px-8 xl:py-7">
+        {children}
+      </main>
     </div>
   );
 }
