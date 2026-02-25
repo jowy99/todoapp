@@ -1,16 +1,30 @@
 import Link from "next/link";
 import { TaskPriority } from "@prisma/client";
+import { CalendarTaskPill } from "@/components/calendar/calendar-task-pill";
+import { MobileNewTaskButton } from "@/components/calendar/mobile-new-task-button";
+import { SheetA11yBridge } from "@/components/calendar/sheet-a11y-bridge";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { taskAccessWhere } from "@/lib/collaboration";
 import { prisma } from "@/lib/prisma";
 
 type CalendarSearchParams = Promise<{
   month?: string;
+  date?: string;
+  view?: string;
+  task?: string;
+  sidebar?: string;
+  daySheet?: string;
+  priorities?: string;
+  lists?: string;
+  tags?: string;
+  completed?: string;
 }>;
 
 type CalendarPageProps = {
   searchParams: CalendarSearchParams;
 };
+
+type CalendarViewMode = "day" | "week" | "month" | "year";
 
 type CalendarTask = {
   id: string;
@@ -18,7 +32,22 @@ type CalendarTask = {
   dueDate: Date;
   priority: TaskPriority;
   isCompleted: boolean;
+  list: {
+    id: string;
+    name: string;
+    color: string | null;
+  } | null;
+  tags: Array<{
+    tagId: string;
+    tag: {
+      id: string;
+      name: string;
+      color: string | null;
+    };
+  }>;
 };
+
+const calendarViews: CalendarViewMode[] = ["day", "week", "month", "year"];
 
 function parseMonthParam(value: string | undefined) {
   if (!value || !/^\d{4}-\d{2}$/.test(value)) {
@@ -36,10 +65,236 @@ function parseMonthParam(value: string | undefined) {
   return new Date(year, monthIndex, 1);
 }
 
+function parseDateParam(value: string | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+
+  const [yearPart, monthPart, dayPart] = value.split("-");
+  const year = Number(yearPart);
+  const monthIndex = Number(monthPart) - 1;
+  const day = Number(dayPart);
+
+  if (
+    Number.isNaN(year) ||
+    Number.isNaN(monthIndex) ||
+    Number.isNaN(day) ||
+    monthIndex < 0 ||
+    monthIndex > 11 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  return new Date(year, monthIndex, day, 0, 0, 0, 0);
+}
+
+function parseViewParam(value: string | undefined): CalendarViewMode {
+  if (value === "day" || value === "week" || value === "month" || value === "year") {
+    return value;
+  }
+
+  return "month";
+}
+
+function parseCsvParam(value: string | undefined) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parsePriorityFilter(value: string | undefined) {
+  const validPriorities = new Set(Object.values(TaskPriority));
+  return parseCsvParam(value).filter((priority): priority is TaskPriority =>
+    validPriorities.has(priority as TaskPriority),
+  );
+}
+
+function toggleValue(values: string[], value: string) {
+  if (values.includes(value)) {
+    return values.filter((entry) => entry !== value);
+  }
+  return [...values, value];
+}
+
+function togglePriorityValue(values: TaskPriority[], value: TaskPriority) {
+  if (values.includes(value)) {
+    return values.filter((entry) => entry !== value);
+  }
+  return [...values, value];
+}
+
 function toMonthParam(date: Date) {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
   return `${year}-${month}`;
+}
+
+function toDateParam(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, amount: number) {
+  const shifted = new Date(date);
+  shifted.setDate(shifted.getDate() + amount);
+  return shifted;
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+}
+
+function clampTimelineHour(hour: number) {
+  if (hour < 6) {
+    return 6;
+  }
+  if (hour > 22) {
+    return 22;
+  }
+  return hour;
+}
+
+function hourLabel(hour: number) {
+  return `${`${hour}`.padStart(2, "0")}:00`;
+}
+
+function startOfWeek(date: Date) {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  const day = normalized.getDay();
+  const offset = day === 0 ? -6 : 1 - day;
+  normalized.setDate(normalized.getDate() + offset);
+  return normalized;
+}
+
+function endOfWeek(date: Date) {
+  const start = startOfWeek(date);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return end;
+}
+
+function shiftFocusDate(date: Date, view: CalendarViewMode, direction: -1 | 1) {
+  const shifted = new Date(date);
+  shifted.setHours(0, 0, 0, 0);
+
+  if (view === "day") {
+    shifted.setDate(shifted.getDate() + direction);
+    return shifted;
+  }
+
+  if (view === "week") {
+    shifted.setDate(shifted.getDate() + direction * 7);
+    return shifted;
+  }
+
+  if (view === "month") {
+    return new Date(shifted.getFullYear(), shifted.getMonth() + direction, 1);
+  }
+
+  return new Date(shifted.getFullYear() + direction, shifted.getMonth(), shifted.getDate());
+}
+
+function toCalendarHref(
+  date: Date,
+  view: CalendarViewMode,
+  options?: {
+    taskId?: string | null;
+    sidebarOpen?: boolean;
+    daySheetDate?: Date | null;
+    priorities?: TaskPriority[];
+    listIds?: string[];
+    tagIds?: string[];
+    showCompleted?: boolean;
+  },
+) {
+  const params = new URLSearchParams();
+  params.set("month", toMonthParam(date));
+  params.set("date", toDateParam(date));
+  params.set("view", view);
+
+  if (options?.taskId) {
+    params.set("task", options.taskId);
+  }
+
+  if (options?.sidebarOpen) {
+    params.set("sidebar", "1");
+  }
+
+  if (options?.daySheetDate) {
+    params.set("daySheet", toDateParam(options.daySheetDate));
+  }
+
+  if (options?.priorities && options.priorities.length > 0) {
+    params.set("priorities", options.priorities.join(","));
+  }
+
+  if (options?.listIds && options.listIds.length > 0) {
+    params.set("lists", options.listIds.join(","));
+  }
+
+  if (options?.tagIds && options.tagIds.length > 0) {
+    params.set("tags", options.tagIds.join(","));
+  }
+
+  if (options?.showCompleted === false) {
+    params.set("completed", "0");
+  }
+
+  return `/calendar?${params.toString()}`;
+}
+
+function getToolbarTitle(date: Date, view: CalendarViewMode) {
+  if (view === "day") {
+    return new Intl.DateTimeFormat("es-ES", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }).format(date);
+  }
+
+  if (view === "week") {
+    const weekStart = startOfWeek(date);
+    const weekEnd = endOfWeek(date);
+    const shortFormatter = new Intl.DateTimeFormat("es-ES", {
+      day: "2-digit",
+      month: "short",
+    });
+    const endFormatter = new Intl.DateTimeFormat("es-ES", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    return `${shortFormatter.format(weekStart)} - ${endFormatter.format(weekEnd)}`;
+  }
+
+  if (view === "year") {
+    return new Intl.DateTimeFormat("es-ES", {
+      year: "numeric",
+    }).format(date);
+  }
+
+  return new Intl.DateTimeFormat("es-ES", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 function priorityTone(priority: TaskPriority) {
@@ -58,10 +313,65 @@ function priorityTone(priority: TaskPriority) {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function priorityPillTone(priority: TaskPriority) {
+  if (priority === TaskPriority.URGENT) {
+    return "border-rose-200/90 bg-rose-50/95";
+  }
+
+  if (priority === TaskPriority.HIGH) {
+    return "border-amber-200/90 bg-amber-50/95";
+  }
+
+  if (priority === TaskPriority.MEDIUM) {
+    return "border-cyan-200/90 bg-cyan-50/95";
+  }
+
+  return "border-slate-200/90 bg-slate-50/95";
+}
+
+function priorityDotTone(priority: TaskPriority) {
+  if (priority === TaskPriority.URGENT) {
+    return "bg-rose-500";
+  }
+
+  if (priority === TaskPriority.HIGH) {
+    return "bg-amber-500";
+  }
+
+  if (priority === TaskPriority.MEDIUM) {
+    return "bg-cyan-500";
+  }
+
+  return "bg-slate-500";
+}
+
+function viewLabel(view: CalendarViewMode) {
+  if (view === "day") {
+    return "Day";
+  }
+  if (view === "week") {
+    return "Week";
+  }
+  if (view === "month") {
+    return "Month";
+  }
+  return "Year";
+}
+
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
   const user = await requireCurrentUser();
   const resolvedParams = await searchParams;
-  const currentMonthDate = parseMonthParam(resolvedParams.month) ?? new Date();
+  const resolvedView = parseViewParam(resolvedParams.view);
+  const resolvedDate = parseDateParam(resolvedParams.date) ?? parseMonthParam(resolvedParams.month) ?? new Date();
+  resolvedDate.setHours(0, 0, 0, 0);
+
+  const currentMonthDate = new Date(resolvedDate.getFullYear(), resolvedDate.getMonth(), 1, 0, 0, 0, 0);
+  const resolvedDayStart = startOfDay(resolvedDate);
+  const nextDayStart = addDays(resolvedDayStart, 1);
+  const weekStartDate = startOfWeek(resolvedDate);
+  const nextWeekStart = addDays(weekStartDate, 7);
+  const yearStart = new Date(resolvedDate.getFullYear(), 0, 1, 0, 0, 0, 0);
+  const nextYearStart = new Date(resolvedDate.getFullYear() + 1, 0, 1, 0, 0, 0, 0);
   const monthStart = new Date(
     currentMonthDate.getFullYear(),
     currentMonthDate.getMonth(),
@@ -87,8 +397,23 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   ).getDate();
   const weekdayOffset = (monthStart.getDay() + 6) % 7;
   const visibleCellCount = Math.ceil((weekdayOffset + daysInMonth) / 7) * 7;
-  const prevMonth = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() - 1, 1);
-  const nextMonth = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 1);
+  const selectedPriorityFilters = parsePriorityFilter(resolvedParams.priorities);
+  const selectedListFilters = parseCsvParam(resolvedParams.lists);
+  const selectedTagFilters = parseCsvParam(resolvedParams.tags);
+  const showCompletedTasks = resolvedParams.completed !== "0";
+  let queryStart = monthStart;
+  let queryEnd = nextMonthStart;
+
+  if (resolvedView === "day") {
+    queryStart = resolvedDayStart;
+    queryEnd = nextDayStart;
+  } else if (resolvedView === "week") {
+    queryStart = weekStartDate;
+    queryEnd = nextWeekStart;
+  } else if (resolvedView === "year") {
+    queryStart = yearStart;
+    queryEnd = nextYearStart;
+  }
 
   const tasks = await prisma.task.findMany({
     where: {
@@ -96,8 +421,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         taskAccessWhere(user.id),
         {
           dueDate: {
-            gte: monthStart,
-            lt: nextMonthStart,
+            gte: queryStart,
+            lt: queryEnd,
           },
         },
       ],
@@ -109,163 +434,1396 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
       dueDate: true,
       priority: true,
       isCompleted: true,
+      list: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+        },
+      },
+      tags: {
+        select: {
+          tagId: true,
+          tag: {
+            select: {
+              id: true,
+              name: true,
+              color: true,
+            },
+          },
+        },
+      },
     },
   });
 
-  const tasksByDay = new Map<number, CalendarTask[]>();
+  const availableListsMap = new Map<string, { id: string; name: string; color: string | null; count: number }>();
+  const availableTagsMap = new Map<string, { id: string; name: string; color: string | null; count: number }>();
 
   for (const task of tasks) {
+    if (task.list) {
+      const existingList = availableListsMap.get(task.list.id);
+      if (existingList) {
+        existingList.count += 1;
+      } else {
+        availableListsMap.set(task.list.id, {
+          id: task.list.id,
+          name: task.list.name,
+          color: task.list.color,
+          count: 1,
+        });
+      }
+    }
+
+    for (const tagEntry of task.tags) {
+      const existingTag = availableTagsMap.get(tagEntry.tag.id);
+      if (existingTag) {
+        existingTag.count += 1;
+      } else {
+        availableTagsMap.set(tagEntry.tag.id, {
+          id: tagEntry.tag.id,
+          name: tagEntry.tag.name,
+          color: tagEntry.tag.color,
+          count: 1,
+        });
+      }
+    }
+  }
+
+  const availableLists = Array.from(availableListsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  const availableTags = Array.from(availableTagsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+
+  const filteredTasks = tasks.filter((task) => {
+    if (!showCompletedTasks && task.isCompleted) {
+      return false;
+    }
+
+    if (selectedPriorityFilters.length > 0 && !selectedPriorityFilters.includes(task.priority)) {
+      return false;
+    }
+
+    if (selectedListFilters.length > 0) {
+      if (!task.list || !selectedListFilters.includes(task.list.id)) {
+        return false;
+      }
+    }
+
+    if (selectedTagFilters.length > 0) {
+      const taskTagIds = task.tags.map((entry) => entry.tag.id);
+      if (!selectedTagFilters.some((tagId) => taskTagIds.includes(tagId))) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const tasksByDate = new Map<string, CalendarTask[]>();
+
+  for (const task of filteredTasks) {
     if (!task.dueDate) {
       continue;
     }
 
-    const day = task.dueDate.getDate();
-    const entries = tasksByDay.get(day) ?? [];
-    entries.push({
+    const dateKey = toDateKey(task.dueDate);
+    const byDateEntries = tasksByDate.get(dateKey) ?? [];
+    byDateEntries.push({
       id: task.id,
       title: task.title,
       dueDate: task.dueDate,
       priority: task.priority,
       isCompleted: task.isCompleted,
+      list: task.list,
+      tags: task.tags,
     });
-    tasksByDay.set(day, entries);
+    tasksByDate.set(dateKey, byDateEntries);
   }
 
-  const monthFormatter = new Intl.DateTimeFormat("es-ES", {
-    month: "long",
-    year: "numeric",
+  const toolbarTitle = getToolbarTitle(resolvedDate, resolvedView);
+  const previousDate = shiftFocusDate(resolvedDate, resolvedView, -1);
+  const nextDate = shiftFocusDate(resolvedDate, resolvedView, 1);
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+  const selectedTaskId = resolvedParams.task?.trim() || null;
+  const selectedTask = selectedTaskId ? filteredTasks.find((task) => task.id === selectedTaskId) ?? null : null;
+  const isSidebarSheetOpen = resolvedParams.sidebar === "1";
+  const resolvedDaySheetDate = parseDateParam(resolvedParams.daySheet);
+  if (resolvedDaySheetDate) {
+    resolvedDaySheetDate.setHours(0, 0, 0, 0);
+  }
+  const isDaySheetOpen = resolvedView === "month" && Boolean(resolvedDaySheetDate);
+  const daySheetDateKey =
+    resolvedDaySheetDate && isDaySheetOpen ? toDateKey(resolvedDaySheetDate) : null;
+  const daySheetTasks = daySheetDateKey ? tasksByDate.get(daySheetDateKey) ?? [] : [];
+  const daySheetTitle = resolvedDaySheetDate
+    ? new Intl.DateTimeFormat("es-ES", {
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }).format(resolvedDaySheetDate)
+    : "";
+  const quickCreateBaseDate =
+    resolvedView === "month" ? resolvedDaySheetDate ?? todayDate : resolvedDaySheetDate ?? resolvedDate;
+  const quickCreateDefaultDate = toDateParam(quickCreateBaseDate);
+  const calendarHref = (
+    date: Date,
+    view: CalendarViewMode,
+    options?: {
+      taskId?: string | null;
+      sidebarOpen?: boolean;
+      daySheetDate?: Date | null;
+      priorities?: TaskPriority[];
+      listIds?: string[];
+      tagIds?: string[];
+      showCompleted?: boolean;
+    },
+  ) =>
+    toCalendarHref(date, view, {
+      priorities: selectedPriorityFilters,
+      listIds: selectedListFilters,
+      tagIds: selectedTagFilters,
+      showCompleted: showCompletedTasks,
+      ...options,
+    });
+  const closeSidebarHref = calendarHref(resolvedDate, resolvedView, {
+    taskId: selectedTask?.id ?? null,
+    daySheetDate: isDaySheetOpen ? resolvedDaySheetDate : undefined,
   });
+  const openSidebarHref = calendarHref(resolvedDate, resolvedView, {
+    taskId: selectedTask?.id ?? null,
+    daySheetDate: isDaySheetOpen ? resolvedDaySheetDate : undefined,
+    sidebarOpen: true,
+  });
+  const closeTaskHref = calendarHref(resolvedDate, resolvedView, {
+    sidebarOpen: isSidebarSheetOpen,
+    daySheetDate: isDaySheetOpen ? resolvedDaySheetDate : undefined,
+  });
+  const openTaskHref = (taskId: string) =>
+    calendarHref(resolvedDate, resolvedView, {
+      taskId,
+      daySheetDate: isDaySheetOpen ? resolvedDaySheetDate : undefined,
+    });
+  const openDaySheetHref = (date: Date) =>
+    calendarHref(resolvedDate, resolvedView, {
+      daySheetDate: date,
+      sidebarOpen: false,
+      taskId: null,
+    });
+  const closeDaySheetHref = calendarHref(resolvedDate, resolvedView, {
+    sidebarOpen: isSidebarSheetOpen,
+    taskId: selectedTask?.id ?? null,
+  });
+  const clearFiltersHref = toCalendarHref(resolvedDate, resolvedView, {
+    taskId: selectedTask?.id ?? null,
+    sidebarOpen: isSidebarSheetOpen,
+    showCompleted: true,
+  });
+  const toggleCompletedHref = calendarHref(resolvedDate, resolvedView, {
+    taskId: selectedTask?.id ?? null,
+    sidebarOpen: isSidebarSheetOpen,
+    showCompleted: !showCompletedTasks,
+  });
+  const togglePriorityHref = (priority: TaskPriority) =>
+    calendarHref(resolvedDate, resolvedView, {
+      taskId: selectedTask?.id ?? null,
+      sidebarOpen: isSidebarSheetOpen,
+      priorities: togglePriorityValue(selectedPriorityFilters, priority),
+    });
+  const toggleListHref = (listId: string) =>
+    calendarHref(resolvedDate, resolvedView, {
+      taskId: selectedTask?.id ?? null,
+      sidebarOpen: isSidebarSheetOpen,
+      listIds: toggleValue(selectedListFilters, listId),
+    });
+  const toggleTagHref = (tagId: string) =>
+    calendarHref(resolvedDate, resolvedView, {
+      taskId: selectedTask?.id ?? null,
+      sidebarOpen: isSidebarSheetOpen,
+      tagIds: toggleValue(selectedTagFilters, tagId),
+    });
+  const hasActiveFilters =
+    selectedPriorityFilters.length > 0 ||
+    selectedListFilters.length > 0 ||
+    selectedTagFilters.length > 0 ||
+    !showCompletedTasks;
+  const activeFilterCount =
+    selectedPriorityFilters.length +
+    selectedListFilters.length +
+    selectedTagFilters.length +
+    (showCompletedTasks ? 0 : 1);
+  const listNameById = new Map(availableLists.map((list) => [list.id, list.name]));
+  const tagNameById = new Map(availableTags.map((tag) => [tag.id, tag.name]));
+  const priorityLabelByValue: Record<TaskPriority, string> = {
+    [TaskPriority.URGENT]: "Urgent",
+    [TaskPriority.HIGH]: "High",
+    [TaskPriority.MEDIUM]: "Medium",
+    [TaskPriority.LOW]: "Low",
+  };
+  const activeFilters = [
+    ...selectedPriorityFilters.map((priority) => ({
+      id: `priority-${priority}`,
+      label: `Priority: ${priorityLabelByValue[priority]}`,
+      href: togglePriorityHref(priority),
+    })),
+    ...selectedListFilters.map((listId) => ({
+      id: `list-${listId}`,
+      label: `List: ${listNameById.get(listId) ?? "Selected list"}`,
+      href: toggleListHref(listId),
+    })),
+    ...selectedTagFilters.map((tagId) => ({
+      id: `tag-${tagId}`,
+      label: `Tag: ${tagNameById.get(tagId) ?? "Selected tag"}`,
+      href: toggleTagHref(tagId),
+    })),
+    ...(!showCompletedTasks
+      ? [
+          {
+            id: "completed-hidden",
+            label: "Status: Hide completed",
+            href: toggleCompletedHref,
+          },
+        ]
+      : []),
+  ];
+
   const timeFormatter = new Intl.DateTimeFormat("es-ES", {
     hour: "2-digit",
     minute: "2-digit",
   });
-
+  const detailDateFormatter = new Intl.DateTimeFormat("es-ES", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-  const mobileGroups = Array.from(tasksByDay.entries()).sort(([a], [b]) => a - b);
+  const timelineHours = Array.from({ length: 17 }, (_, index) => index + 6);
+  const weekDates = Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index));
+  const weekDayLabelFormatter = new Intl.DateTimeFormat("es-ES", {
+    weekday: "short",
+  });
+  const weekDayNumberFormatter = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+  });
+  const dayTitleFormatter = new Intl.DateTimeFormat("es-ES", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  });
+  const yearMonthLabelFormatter = new Intl.DateTimeFormat("es-ES", {
+    month: "long",
+  });
+  const miniWeekDays = ["L", "M", "X", "J", "V", "S", "D"];
+  const todayDateKey = toDateKey(todayDate);
+  const isFocusedDayToday = toDateKey(resolvedDate) === todayDateKey;
+  const weekAllDayTasks = new Map<string, CalendarTask[]>();
+  const weekTimedTasksByHour = new Map<string, CalendarTask[]>();
+  const dayAllDayTasks: CalendarTask[] = [];
+  const dayTimedTasksByHour = new Map<number, CalendarTask[]>();
+  const dayDateKey = toDateKey(resolvedDate);
+  const dayTasks = tasksByDate.get(dayDateKey) ?? [];
+  const yearMonths = Array.from({ length: 12 }, (_, index) => new Date(resolvedDate.getFullYear(), index, 1));
+  const monthWeeks = Array.from({ length: visibleCellCount / 7 }, (_, weekIndex) => {
+    const cells = Array.from({ length: 7 }, (_, dayIndex) => {
+      const cellIndex = weekIndex * 7 + dayIndex;
+      const dayNumber = cellIndex - weekdayOffset + 1;
+      const isVisibleMonth = dayNumber >= 1 && dayNumber <= daysInMonth;
+      const dayDate = isVisibleMonth
+        ? new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), dayNumber)
+        : null;
+      const dayDateKey = dayDate ? toDateKey(dayDate) : null;
+      const dayTasksForCell = dayDateKey ? tasksByDate.get(dayDateKey) ?? [] : [];
+      const daySheetHref = dayDate ? openDaySheetHref(dayDate) : "";
+      const isSelectedDayCell = Boolean(dayDateKey && daySheetDateKey === dayDateKey);
+      const dayToggleHref = isSelectedDayCell ? closeDaySheetHref : daySheetHref;
+      const isTodayCell =
+        isVisibleMonth &&
+        dayNumber === todayDate.getDate() &&
+        todayDate.getMonth() === currentMonthDate.getMonth() &&
+        todayDate.getFullYear() === currentMonthDate.getFullYear();
 
-  return (
-    <section className="space-y-4 sm:space-y-6">
-      <header className="ui-card ui-card--hero relative p-4 sm:p-6">
-        <div
-          aria-hidden
-          className="bg-primary/14 pointer-events-none absolute -top-16 right-10 h-36 w-36 rounded-full blur-2xl"
-        />
-        <div
-          aria-hidden
-          className="bg-accent/15 pointer-events-none absolute -bottom-12 left-12 h-28 w-28 rounded-full blur-2xl"
-        />
-        <p className="ui-kicker">Calendario</p>
-        <h1 className="ui-title-xl mt-2">{monthFormatter.format(currentMonthDate)}</h1>
-        <p className="ui-subtle mt-2">
-          Vista mensual de tareas con fecha límite. Los bloques se colorean por prioridad.
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <Link
-            href={`/calendar?month=${toMonthParam(prevMonth)}`}
-            className="ui-btn ui-btn--secondary ui-btn--compact"
-          >
-            Mes anterior
-          </Link>
-          <Link
-            href={`/calendar?month=${toMonthParam(new Date())}`}
-            className="ui-btn ui-btn--primary ui-btn--compact"
-          >
-            Hoy
-          </Link>
-          <Link
-            href={`/calendar?month=${toMonthParam(nextMonth)}`}
-            className="ui-btn ui-btn--secondary ui-btn--compact"
-          >
-            Mes siguiente
-          </Link>
-        </div>
-      </header>
+      return {
+        cellIndex,
+        dayNumber,
+        isVisibleMonth,
+        dayDate,
+        dayTasksForCell,
+        isSelectedDayCell,
+        dayToggleHref,
+        isTodayCell,
+      };
+    });
 
-      <section className="space-y-3 md:hidden">
-        {mobileGroups.length === 0 ? (
-          <p className="ui-empty">No hay tareas con fecha para este mes.</p>
-        ) : (
-          mobileGroups.map(([day, dayTasks]) => (
-            <article key={day} className="ui-card space-y-2 rounded-2xl p-3">
-              <p className="ui-title-lg !text-base">
-                {day} · {monthFormatter.format(currentMonthDate)}
-              </p>
-              <div className="mt-2 space-y-1.5">
-                {dayTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`rounded-xl border px-2.5 py-2 text-xs font-semibold transition-all duration-200 ease-out ${priorityTone(task.priority)} ${
-                      task.isCompleted ? "line-through opacity-60" : ""
-                    }`}
+    return {
+      weekIndex,
+      cells,
+      hasSelectedDay: cells.some((cell) => cell.isSelectedDayCell),
+    };
+  });
+
+  for (const weekDate of weekDates) {
+    const dateKey = toDateKey(weekDate);
+    const dayTasks = tasksByDate.get(dateKey) ?? [];
+    const allDayTasks: CalendarTask[] = [];
+
+    for (const task of dayTasks) {
+      const hours = task.dueDate.getHours();
+      const minutes = task.dueDate.getMinutes();
+
+      if (hours === 0 && minutes === 0) {
+        allDayTasks.push(task);
+        continue;
+      }
+
+      const timelineHour = clampTimelineHour(hours);
+      const hourKey = `${dateKey}-${timelineHour}`;
+      const hourEntries = weekTimedTasksByHour.get(hourKey) ?? [];
+      hourEntries.push(task);
+      weekTimedTasksByHour.set(hourKey, hourEntries);
+    }
+
+    if (allDayTasks.length > 0) {
+      weekAllDayTasks.set(dateKey, allDayTasks);
+    }
+  }
+
+  for (const task of dayTasks) {
+    const hours = task.dueDate.getHours();
+    const minutes = task.dueDate.getMinutes();
+
+    if (hours === 0 && minutes === 0) {
+      dayAllDayTasks.push(task);
+      continue;
+    }
+
+    const timelineHour = clampTimelineHour(hours);
+    const hourEntries = dayTimedTasksByHour.get(timelineHour) ?? [];
+    hourEntries.push(task);
+    dayTimedTasksByHour.set(timelineHour, hourEntries);
+  }
+
+  const renderSidebarPanelContent = (variant: "desktop" | "sheet") => {
+    const isSheet = variant === "sheet";
+    const chipHeightClass = isSheet ? "h-11" : "h-8";
+    const listRowHeightClass = isSheet ? "min-h-11" : "min-h-10";
+    const statusHeightClass = isSheet ? "h-11" : "h-10";
+    const sectionSpacingClass = isSheet ? "mt-6" : "mt-5";
+
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        {variant === "desktop" ? (
+          <div className="border-b border-black/10 px-4 py-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-slate-900">Filters</p>
+              {hasActiveFilters ? (
+                <Link
+                  href={clearFiltersHref}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-black/10 bg-white/80 px-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                >
+                  <span aria-hidden>↺</span>
+                  Reset all
+                </Link>
+              ) : null}
+            </div>
+            <p className="mt-1 text-xs text-black/45">Refine visible tasks in the current calendar view.</p>
+            {hasActiveFilters ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activeFilters.map((filter) => (
+                  <Link
+                    key={filter.id}
+                    href={filter.href}
+                    className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-2.5 text-[11px] font-medium text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
                   >
-                    <p className="truncate">{task.title}</p>
-                    <p className="mt-0.5 text-[11px] font-medium opacity-80">
-                      {timeFormatter.format(task.dueDate)}
-                    </p>
-                  </div>
+                    <span className="truncate">{filter.label}</span>
+                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/5 text-[11px] leading-none text-black/65">
+                      ×
+                    </span>
+                  </Link>
                 ))}
               </div>
-            </article>
-          ))
-        )}
-      </section>
+            ) : null}
+          </div>
+        ) : null}
 
-      <div className="ui-card hidden overflow-x-auto rounded-2xl p-3 md:block">
-        <div className="grid min-w-[680px] grid-cols-7 gap-2 lg:min-w-0">
-          {weekDays.map((day) => (
-            <p key={day} className="px-2 py-1 text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">
-              {day}
-            </p>
-          ))}
+        <div
+          className={`flex-1 overflow-y-auto ${isSheet ? "px-4 py-4 pb-[max(16px,env(safe-area-inset-bottom))]" : "px-4 py-4"}`}
+        >
+          <section>
+            <p className="text-xs font-semibold tracking-wide text-black/60 uppercase">Priority</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(
+                [
+                  { value: TaskPriority.URGENT, label: "Urgent", dotClass: "bg-rose-500" },
+                  { value: TaskPriority.HIGH, label: "High", dotClass: "bg-amber-500" },
+                  { value: TaskPriority.MEDIUM, label: "Medium", dotClass: "bg-cyan-500" },
+                  { value: TaskPriority.LOW, label: "Low", dotClass: "bg-slate-500" },
+                ] as const
+              ).map((priorityOption) => {
+                const isActive = selectedPriorityFilters.includes(priorityOption.value);
+                return (
+                  <Link
+                    key={priorityOption.value}
+                    href={togglePriorityHref(priorityOption.value)}
+                    className={`inline-flex ${chipHeightClass} items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 ${
+                      isActive
+                        ? "border-black/20 bg-black/5 text-slate-900"
+                        : "border-black/10 bg-white/65 text-slate-700 hover:bg-black/[0.03]"
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${priorityOption.dotClass}`} aria-hidden />
+                    {priorityOption.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
 
-          {Array.from({ length: visibleCellCount }).map((_, index) => {
-            const dayNumber = index - weekdayOffset + 1;
-            const isVisibleMonth = dayNumber >= 1 && dayNumber <= daysInMonth;
-            const dayTasks = isVisibleMonth ? (tasksByDay.get(dayNumber) ?? []) : [];
+          <section className={sectionSpacingClass}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold tracking-wide text-black/60 uppercase">Lists</p>
+              <p className="text-xs font-medium text-black/40">
+                {selectedListFilters.length > 0 ? `${selectedListFilters.length} selected` : "All"}
+              </p>
+            </div>
+            {availableLists.length === 0 ? (
+              <p className="mt-3 text-sm text-black/40">No lists available in this range.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {availableLists.map((list) => {
+                  const isActive = selectedListFilters.includes(list.id);
+                  return (
+                    <Link
+                      key={list.id}
+                      href={toggleListHref(list.id)}
+                      className={`flex ${listRowHeightClass} min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 ${
+                        isActive
+                          ? "border-black/20 bg-black/5 ring-2 ring-black/10"
+                          : "border-black/10 bg-white/55 text-slate-700 hover:bg-black/[0.03]"
+                      }`}
+                    >
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full border border-white/60"
+                        style={{ backgroundColor: list.color ?? "#94a3b8" }}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1 truncate">{list.name}</span>
+                      <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold text-black/55">
+                        {list.count}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-            return (
-              <article
-                key={index}
-                className={`min-h-32 rounded-xl border p-2 transition-all duration-200 ease-out lg:min-h-36 ${
-                  isVisibleMonth
-                    ? "border-slate-200/80 bg-white/95 shadow-[0_10px_24px_-22px_rgb(15_23_42/0.9)] hover:-translate-y-[1px] hover:shadow-[0_14px_26px_-20px_rgb(15_23_42/0.85)]"
-                    : "border-transparent bg-transparent"
+          <div className={`${sectionSpacingClass} h-px bg-black/10`} aria-hidden />
+
+          <section className={sectionSpacingClass}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold tracking-wide text-black/60 uppercase">Tags</p>
+              <p className="text-xs font-medium text-black/40">
+                {selectedTagFilters.length > 0 ? `${selectedTagFilters.length} selected` : "All"}
+              </p>
+            </div>
+
+            {availableTags.length === 0 ? (
+              <div className="mt-3 rounded-xl border border-dashed border-black/15 bg-white/50 px-3 py-3">
+                <p className="text-sm font-medium text-black/45">No tags available in this range.</p>
+                <p className="mt-1 text-xs text-black/35">Create a tag to filter tasks.</p>
+              </div>
+            ) : (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {availableTags.map((tag) => {
+                  const isActive = selectedTagFilters.includes(tag.id);
+                  return (
+                    <Link
+                      key={tag.id}
+                      href={toggleTagHref(tag.id)}
+                      className={`inline-flex ${chipHeightClass} min-w-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 ${
+                        isActive
+                          ? "border-black/20 bg-black/5 text-slate-900"
+                          : "border-black/10 bg-white/65 text-slate-700 hover:bg-black/[0.03]"
+                      }`}
+                    >
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: tag.color ?? "#94a3b8" }}
+                        aria-hidden
+                      />
+                      <span className="max-w-[124px] truncate">{tag.name}</span>
+                      <span className="shrink-0 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-semibold text-black/55">
+                        {tag.count}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <div className={`${sectionSpacingClass} h-px bg-black/10`} aria-hidden />
+
+          <section className={sectionSpacingClass}>
+            <p className="text-xs font-semibold tracking-wide text-black/60 uppercase">Status</p>
+            <Link
+              href={toggleCompletedHref}
+              role="switch"
+              aria-checked={showCompletedTasks}
+              className={`mt-3 flex ${statusHeightClass} items-center justify-between rounded-xl border border-black/10 bg-white/55 px-3 transition-colors duration-200 ease-out hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60`}
+            >
+              <span className="text-sm font-medium text-slate-700">Show completed</span>
+              <span
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ease-out ${
+                  showCompletedTasks ? "bg-slate-900" : "bg-slate-300"
                 }`}
+                aria-hidden
               >
-                {isVisibleMonth ? (
-                  <>
-                    <p className="text-sm font-bold text-slate-800">{dayNumber}</p>
-                    <div className="mt-2 space-y-1">
-                      {dayTasks.length === 0 ? (
-                        <p className="text-xs font-medium text-slate-400">Sin tareas</p>
-                      ) : (
-                        dayTasks.slice(0, 4).map((task) => (
-                          <div
-                            key={task.id}
-                            className={`rounded-lg border px-2 py-1 text-xs font-semibold transition-all duration-200 ease-out ${priorityTone(task.priority)} ${
-                              task.isCompleted ? "line-through opacity-60" : ""
-                            }`}
-                          >
-                            <p className="truncate">{task.title}</p>
-                            <p className="text-[10px] font-medium opacity-80">
-                              {timeFormatter.format(task.dueDate)}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                      {dayTasks.length > 4 ? (
-                        <p className="text-[11px] font-semibold text-slate-500">
-                          +{dayTasks.length - 4} más
-                        </p>
-                      ) : null}
-                    </div>
-                  </>
-                ) : null}
-              </article>
-            );
-          })}
+                <span
+                  className={`h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(15,23,42,0.35)] transition-transform duration-200 ease-out ${
+                    showCompletedTasks ? "translate-x-4" : "translate-x-0.5"
+                  }`}
+                />
+              </span>
+            </Link>
+          </section>
         </div>
       </div>
+    );
+  };
+
+  const renderDayDetailsPanel = (viewport: "mobile" | "desktop") => {
+    const hasSelectedDay = Boolean(isDaySheetOpen && resolvedDaySheetDate);
+
+    return (
+      <aside
+        className={`min-h-0 overflow-hidden rounded-2xl border border-black/10 bg-white/85 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.85)] ${
+          viewport === "mobile" ? "mt-2" : "h-full"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-black/10 px-3 py-2.5">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">Day tasks</p>
+            <p className="truncate text-sm font-semibold capitalize text-slate-800">
+              {hasSelectedDay ? daySheetTitle : "Select a day"}
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+              {hasSelectedDay
+                ? `${daySheetTasks.length} ${daySheetTasks.length === 1 ? "task" : "tasks"}`
+                : "Pick any date in the month grid"}
+            </p>
+          </div>
+          {hasSelectedDay ? (
+            <Link
+              href={closeDaySheetHref}
+              aria-label="Close day details"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 bg-white/80 text-slate-600 transition-colors hover:bg-slate-100"
+            >
+              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden>
+                <path
+                  d="m6 6 8 8m0-8-8 8"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </Link>
+          ) : null}
+        </div>
+        <div
+          className={`space-y-2 overflow-y-auto p-3 ${
+            viewport === "mobile" ? "max-h-[220px]" : "max-h-[520px]"
+          }`}
+        >
+          {!hasSelectedDay ? (
+            <div className="rounded-xl border border-dashed border-black/15 bg-white/70 px-3 py-3">
+              <p className="text-sm font-medium text-slate-500">No day selected.</p>
+              <p className="mt-1 text-xs text-slate-400">Tap a date to see its tasks in this side panel.</p>
+            </div>
+          ) : daySheetTasks.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-black/15 bg-white/70 px-3 py-3">
+              <p className="text-sm font-medium text-slate-500">No tasks for this day.</p>
+              <p className="mt-1 text-xs text-slate-400">Select another date to see planned work.</p>
+            </div>
+          ) : (
+            daySheetTasks.map((task) => {
+              const timeLabel =
+                task.dueDate.getHours() === 0 && task.dueDate.getMinutes() === 0
+                  ? "All day"
+                  : timeFormatter.format(task.dueDate);
+              const priorityLabel =
+                task.priority === TaskPriority.URGENT
+                  ? "Urgent"
+                  : task.priority === TaskPriority.HIGH
+                    ? "High"
+                    : task.priority === TaskPriority.MEDIUM
+                      ? "Medium"
+                      : "Low";
+
+              return (
+                <Link
+                  key={task.id}
+                  href={openTaskHref(task.id)}
+                  className={`group block min-w-0 rounded-xl border border-black/10 px-2.5 py-2 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:shadow-sm ${priorityPillTone(task.priority)} ${
+                    task.isCompleted ? "opacity-70" : ""
+                  }`}
+                >
+                  <div className="flex min-w-0 items-start gap-2">
+                    <span className="shrink-0 rounded-md bg-white/75 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
+                      {timeLabel}
+                    </span>
+                    <p
+                      className={`min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-800 ${
+                        task.isCompleted ? "line-through" : ""
+                      }`}
+                    >
+                      {task.title}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span className="inline-flex rounded-full border border-black/10 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {priorityLabel}
+                    </span>
+                    {task.list ? (
+                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-black/10 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: task.list.color ?? "#94a3b8" }}
+                          aria-hidden
+                        />
+                        <span className="max-w-[110px] truncate">{task.list.name}</span>
+                      </span>
+                    ) : null}
+                    {task.tags[0] ? (
+                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-black/10 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                        <span
+                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: task.tags[0].tag.color ?? "#94a3b8" }}
+                          aria-hidden
+                        />
+                        <span className="max-w-[96px] truncate">{task.tags[0].tag.name}</span>
+                      </span>
+                    ) : null}
+                    {task.isCompleted ? (
+                      <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                        Completed
+                      </span>
+                    ) : null}
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      </aside>
+    );
+  };
+
+  return (
+    <section
+      className={`min-h-[100dvh] w-full max-w-none ${isSidebarSheetOpen || selectedTask ? "overflow-hidden" : ""}`}
+    >
+      <div
+        className={`grid min-h-0 gap-3 ${
+          selectedTask ? "lg:grid-cols-[320px_minmax(0,1fr)_360px]" : "lg:grid-cols-[320px_minmax(0,1fr)]"
+        }`}
+      >
+        <aside className="hidden min-h-0 min-w-0 overflow-hidden rounded-2xl border border-black/10 bg-white/70 shadow-sm backdrop-blur-sm lg:flex lg:h-[calc(100dvh-128px)] lg:flex-col lg:sticky lg:top-24">
+          {renderSidebarPanelContent("desktop")}
+        </aside>
+        <div className="ui-card relative min-h-0 min-w-0 overflow-hidden rounded-[24px] p-0">
+        <div className="sticky top-0 z-20 border-b border-black/10 bg-white/90 px-3 py-3 backdrop-blur sm:px-4 sm:py-3.5">
+          <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="ui-kicker ui-kicker--muted">Calendar</p>
+                <h1 className="truncate text-lg font-bold capitalize text-slate-900 sm:text-2xl">{toolbarTitle}</h1>
+              </div>
+              <div className="flex items-center gap-2 lg:hidden">
+                <Link
+                  href={openSidebarHref}
+                  aria-label="Open filters"
+                  aria-haspopup="dialog"
+                  aria-expanded={isSidebarSheetOpen}
+                  aria-controls="calendar-filters-sheet"
+                  className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white/80 px-4 text-sm font-semibold text-slate-700 transition-all duration-200 ease-out hover:bg-slate-100"
+                >
+                  Filters
+                  {activeFilterCount > 0 ? (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-[11px] font-semibold text-white">
+                      {activeFilterCount}
+                    </span>
+                  ) : null}
+                </Link>
+                <MobileNewTaskButton
+                  defaultDate={quickCreateDefaultDate}
+                  compact
+                  className="inline-flex sm:hidden"
+                />
+                <MobileNewTaskButton
+                  defaultDate={quickCreateDefaultDate}
+                  className="hidden sm:inline-flex lg:hidden"
+                />
+              </div>
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:justify-end lg:gap-3">
+              <div className="inline-flex items-center rounded-2xl border border-black/10 bg-white/90 p-1">
+                <Link
+                  href={calendarHref(previousDate, resolvedView)}
+                  aria-label="Previous period"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white/60 text-slate-700 transition-all duration-200 ease-out hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                >
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden className="h-4 w-4">
+                    <path
+                      d="M12.5 4.5L7 10l5.5 5.5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </Link>
+                <Link
+                  href={calendarHref(todayDate, resolvedView)}
+                  className="inline-flex h-9 items-center justify-center rounded-xl px-3 text-sm font-semibold text-slate-900 transition-all duration-200 ease-out hover:bg-slate-100"
+                >
+                  Today
+                </Link>
+                <Link
+                  href={calendarHref(nextDate, resolvedView)}
+                  aria-label="Next period"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white/60 text-slate-700 transition-all duration-200 ease-out hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                >
+                  <svg viewBox="0 0 20 20" fill="none" aria-hidden className="h-4 w-4">
+                    <path
+                      d="M7.5 4.5L13 10l-5.5 5.5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </Link>
+              </div>
+
+              <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible sm:pb-0">
+                <div className="inline-flex min-w-max items-center rounded-2xl border border-black/10 bg-white/90 p-1">
+                  {calendarViews.map((view) => {
+                    const isActive = resolvedView === view;
+                    return (
+                      <Link
+                        key={view}
+                        href={calendarHref(resolvedDate, view)}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`inline-flex h-9 items-center justify-center rounded-xl px-3 text-sm font-semibold transition-all duration-200 ease-out ${
+                          isActive
+                            ? "bg-slate-900 text-white shadow-[0_10px_20px_-16px_rgb(15_23_42/0.95)]"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        }`}
+                      >
+                        {viewLabel(view)}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="hidden items-center gap-2 lg:flex">
+                <MobileNewTaskButton
+                  defaultDate={quickCreateDefaultDate}
+                  className="hidden lg:inline-flex"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="min-h-0 p-3 sm:p-4 md:p-5">
+          {resolvedView === "day" ? (
+            <section className="min-h-0 space-y-3">
+              <div className="rounded-2xl border border-slate-200/70 bg-white/70">
+                <div className="flex items-center justify-between border-b border-slate-200/80 px-3 py-3 sm:px-4">
+                  <p
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-semibold capitalize ${
+                      isFocusedDayToday
+                        ? "bg-black/5 text-slate-900 ring-1 ring-black/10"
+                        : "text-slate-800"
+                    }`}
+                  >
+                    {dayTitleFormatter.format(resolvedDate)}
+                  </p>
+                  <p className="text-xs font-semibold text-slate-500">{dayTasks.length} tasks</p>
+                </div>
+
+                <div className="border-b border-slate-200/80 bg-slate-50/80 px-3 py-2.5 sm:px-4">
+                  <p className="text-[10px] font-bold tracking-[0.1em] text-slate-500 uppercase">All day</p>
+                  {dayAllDayTasks.length === 0 ? (
+                    <p className="mt-1 text-xs text-slate-400">No all-day tasks</p>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {dayAllDayTasks.map((task) => (
+                        <Link
+                          key={task.id}
+                          href={openTaskHref(task.id)}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${priorityTone(task.priority)} ${
+                            task.isCompleted ? "line-through opacity-60" : ""
+                          }`}
+                        >
+                          {task.title}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="min-h-0">
+                  {timelineHours.map((hour) => {
+                    const hourTasks = dayTimedTasksByHour.get(hour) ?? [];
+                    return (
+                      <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)] border-b border-slate-100 last:border-b-0">
+                        <div className="border-r border-slate-200/70 bg-white/95 px-2 py-2 text-[10px] font-semibold tracking-[0.08em] text-slate-500 uppercase">
+                          {hourLabel(hour)}
+                        </div>
+                        <div className="min-h-[62px] px-2 py-1.5">
+                          <div className="space-y-1">
+                            {hourTasks.slice(0, 3).map((task) => (
+                              <Link
+                                key={task.id}
+                                href={openTaskHref(task.id)}
+                                className={`rounded-lg border px-2 py-1 text-xs font-semibold leading-tight ${priorityTone(task.priority)} ${
+                                  task.isCompleted ? "line-through opacity-60" : ""
+                                }`}
+                              >
+                                <p className="truncate">{task.title}</p>
+                                <p className="text-[10px] font-medium opacity-80">{timeFormatter.format(task.dueDate)}</p>
+                              </Link>
+                            ))}
+                            {hourTasks.length > 3 ? (
+                              <p className="text-[10px] font-semibold text-slate-500">+{hourTasks.length - 3} more</p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          ) : resolvedView === "week" ? (
+            <section className="min-h-0 space-y-3">
+              <div className="rounded-2xl border border-slate-200/70 bg-white/70">
+                <div className="min-h-0 overflow-x-auto lg:overflow-visible">
+                  <div className="min-w-[860px] min-h-0 lg:min-w-0">
+                    <div className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-slate-200/80 bg-white/90">
+                      <div className="sticky left-0 z-20 border-r border-slate-200/80 bg-white/95 px-2 py-2 text-[10px] font-semibold tracking-[0.1em] text-slate-400 uppercase">
+                        Time
+                      </div>
+                      {weekDates.map((weekDate) => {
+                        const dateKey = toDateKey(weekDate);
+                        const isToday = dateKey === todayDateKey;
+                        return (
+                          <div
+                            key={dateKey}
+                            className={`border-r border-slate-200/70 px-2 py-2 text-center last:border-r-0 ${
+                              isToday ? "bg-black/[0.04] ring-1 ring-inset ring-black/10" : ""
+                            }`}
+                          >
+                            <p
+                              className={`text-[10px] font-bold tracking-[0.08em] uppercase ${
+                                isToday ? "text-slate-700" : "text-slate-500"
+                              }`}
+                            >
+                              {weekDayLabelFormatter.format(weekDate)}
+                            </p>
+                            <p className="mt-1">
+                              <span
+                                className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${
+                                  isToday ? "bg-black text-white" : "text-slate-700"
+                                }`}
+                              >
+                                {weekDayNumberFormatter.format(weekDate)}
+                              </span>
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-slate-200/70 bg-slate-50/70">
+                      <div className="sticky left-0 z-10 border-r border-slate-200/80 bg-slate-50/95 px-2 py-2 text-[10px] font-semibold tracking-[0.1em] text-slate-400 uppercase">
+                        All day
+                      </div>
+                      {weekDates.map((weekDate) => {
+                        const dateKey = toDateKey(weekDate);
+                        const allDayTasks = weekAllDayTasks.get(dateKey) ?? [];
+                        return (
+                          <div key={dateKey} className="min-h-12 border-r border-slate-200/70 px-1.5 py-1.5 last:border-r-0">
+                            <div className="space-y-1">
+                              {allDayTasks.slice(0, 2).map((task) => (
+                                <Link
+                                  key={task.id}
+                                  href={openTaskHref(task.id)}
+                                  className={`rounded-lg border px-2 py-1 text-[11px] font-semibold leading-tight ${priorityTone(task.priority)} ${
+                                    task.isCompleted ? "line-through opacity-60" : ""
+                                  }`}
+                                >
+                                  <p className="truncate">{task.title}</p>
+                                </Link>
+                              ))}
+                              {allDayTasks.length > 2 ? (
+                                <p className="px-1 text-[10px] font-semibold text-slate-500">
+                                  +{allDayTasks.length - 2} more
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {timelineHours.map((hour) => (
+                      <div
+                        key={hour}
+                        className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-slate-100 last:border-b-0"
+                      >
+                        <div className="sticky left-0 z-10 border-r border-slate-200/70 bg-white/95 px-2 py-2 text-[10px] font-semibold tracking-[0.08em] text-slate-500 uppercase">
+                          {hourLabel(hour)}
+                        </div>
+                        {weekDates.map((weekDate) => {
+                          const dateKey = toDateKey(weekDate);
+                          const hourTasks = weekTimedTasksByHour.get(`${dateKey}-${hour}`) ?? [];
+                          return (
+                            <div key={dateKey} className="min-h-[64px] border-r border-slate-100 px-1.5 py-1.5 last:border-r-0">
+                              <div className="space-y-1">
+                                {hourTasks.slice(0, 2).map((task) => (
+                                  <Link
+                                    key={task.id}
+                                    href={openTaskHref(task.id)}
+                                    className={`rounded-lg border px-2 py-1 text-[11px] font-semibold leading-tight ${priorityTone(task.priority)} ${
+                                      task.isCompleted ? "line-through opacity-60" : ""
+                                    }`}
+                                  >
+                                    <p className="truncate">{task.title}</p>
+                                    <p className="text-[10px] font-medium opacity-80">
+                                      {timeFormatter.format(task.dueDate)}
+                                    </p>
+                                  </Link>
+                                ))}
+                                {hourTasks.length > 2 ? (
+                                  <p className="px-1 text-[10px] font-semibold text-slate-500">
+                                    +{hourTasks.length - 2} more
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : resolvedView === "year" ? (
+            <section className="min-h-0 space-y-3">
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {yearMonths.map((monthDate) => {
+                  const monthIndex = monthDate.getMonth();
+                  const miniMonthStart = new Date(resolvedDate.getFullYear(), monthIndex, 1);
+                  const miniDaysInMonth = new Date(resolvedDate.getFullYear(), monthIndex + 1, 0).getDate();
+                  const miniWeekdayOffset = (miniMonthStart.getDay() + 6) % 7;
+                  const miniVisibleCellCount = Math.ceil((miniWeekdayOffset + miniDaysInMonth) / 7) * 7;
+                  let monthTaskCount = 0;
+
+                  for (let day = 1; day <= miniDaysInMonth; day += 1) {
+                    const dateKey = toDateKey(new Date(resolvedDate.getFullYear(), monthIndex, day));
+                    monthTaskCount += tasksByDate.get(dateKey)?.length ?? 0;
+                  }
+
+                  return (
+                    <Link
+                      key={monthIndex}
+                      href={calendarHref(miniMonthStart, "month")}
+                      className="group rounded-2xl border border-slate-200/80 bg-white/90 p-3 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-[0_16px_28px_-20px_rgb(15_23_42/0.8)]"
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-sm font-semibold capitalize text-slate-800">
+                          {yearMonthLabelFormatter.format(monthDate)}
+                        </p>
+                        <p className="text-[11px] font-semibold text-slate-500">{monthTaskCount}</p>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {miniWeekDays.map((day) => (
+                          <p key={day} className="text-center text-[9px] font-bold tracking-[0.08em] text-slate-400">
+                            {day}
+                          </p>
+                        ))}
+                        {Array.from({ length: miniVisibleCellCount }).map((_, index) => {
+                          const dayNumber = index - miniWeekdayOffset + 1;
+                          const isVisibleMonth = dayNumber >= 1 && dayNumber <= miniDaysInMonth;
+                          if (!isVisibleMonth) {
+                            return <span key={index} className="h-7 rounded-md" aria-hidden />;
+                          }
+                          const dateKey = toDateKey(new Date(resolvedDate.getFullYear(), monthIndex, dayNumber));
+                          const dayTaskCount = tasksByDate.get(dateKey)?.length ?? 0;
+                          return (
+                            <span
+                              key={index}
+                              className={`grid h-7 place-items-center rounded-md text-[10px] font-semibold ${
+                                dayTaskCount > 0
+                                  ? "bg-slate-900/8 text-slate-900"
+                                  : "text-slate-600 group-hover:bg-slate-100/80"
+                              }`}
+                            >
+                              {dayNumber}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ) : (
+            <>
+              <section className="md:hidden">
+                <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-2">
+                  <div className="grid grid-cols-7 gap-1">
+                    {weekDays.map((day) => (
+                      <p key={day} className="px-1 py-1 text-center text-[10px] font-bold tracking-[0.08em] text-slate-500 uppercase">
+                        {day}
+                      </p>
+                    ))}
+                    {monthWeeks.map((week) => (
+                      <div key={week.weekIndex} className="contents">
+                        {week.cells.map((cell) => (
+                          <article
+                            key={cell.cellIndex}
+                            className={`relative min-h-[88px] min-w-0 overflow-hidden rounded-xl border border-black/10 bg-white/70 p-2 ${
+                              cell.isVisibleMonth
+                                ? cell.isSelectedDayCell
+                                  ? "border-black/25 bg-black/[0.05] ring-2 ring-black/15"
+                                  : cell.isTodayCell
+                                    ? "border-black/20 bg-black/[0.03] ring-2 ring-black/10"
+                                    : ""
+                                : "border-transparent bg-transparent"
+                            }`}
+                          >
+                            {cell.isVisibleMonth && cell.dayDate ? (
+                              <>
+                                <Link
+                                  href={cell.dayToggleHref}
+                                  aria-label={
+                                    cell.isSelectedDayCell
+                                      ? `Close tasks for ${cell.dayNumber}`
+                                      : `Open tasks for ${cell.dayNumber}`
+                                  }
+                                  className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+                                />
+                                <div className="relative z-10 min-w-0 pointer-events-none">
+                                  <p>
+                                    <span
+                                      className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+                                        cell.isTodayCell ? "bg-black text-white" : "text-slate-700"
+                                      }`}
+                                    >
+                                      {cell.dayNumber}
+                                    </span>
+                                  </p>
+                                  <div className="mt-1 min-w-0">
+                                    {cell.dayTasksForCell.length > 0 ? (
+                                      <div className="flex items-center gap-1">
+                                        {cell.dayTasksForCell.slice(0, 2).map((task) => (
+                                          <Link
+                                            key={task.id}
+                                            href={openTaskHref(task.id)}
+                                            aria-label={task.title}
+                                            className={`pointer-events-auto h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white/90 transition-transform duration-200 ease-out hover:scale-110 ${
+                                              priorityDotTone(task.priority)
+                                            } ${task.isCompleted ? "opacity-45" : ""}`}
+                                          />
+                                        ))}
+                                        <Link
+                                          href={cell.dayToggleHref}
+                                          aria-label={`View ${cell.dayTasksForCell.length} tasks`}
+                                          className="pointer-events-auto ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-900/10 px-1 text-[9px] font-semibold text-slate-700 transition-colors hover:bg-slate-900/15"
+                                        >
+                                          {cell.dayTasksForCell.length}
+                                        </Link>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {isDaySheetOpen && resolvedDaySheetDate ? renderDayDetailsPanel("mobile") : null}
+              </section>
+
+              <div
+                className={`hidden min-h-0 md:grid ${
+                  isDaySheetOpen && resolvedDaySheetDate
+                    ? "md:grid-cols-[minmax(0,1fr)_320px] md:gap-3"
+                    : "md:grid-cols-1"
+                }`}
+              >
+                <div className="overflow-x-auto rounded-2xl border border-slate-200/70 bg-white/70 p-3">
+                  <div className="grid min-w-[680px] min-h-0 grid-cols-7 gap-2 lg:min-w-0">
+                    {weekDays.map((day) => (
+                      <p key={day} className="px-2 py-1 text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">
+                        {day}
+                      </p>
+                    ))}
+                    {monthWeeks.map((week) => (
+                      <div key={week.weekIndex} className="contents">
+                        {week.cells.map((cell) => (
+                          <article
+                            key={cell.cellIndex}
+                            className={`relative min-h-[120px] min-w-0 overflow-hidden rounded-xl border border-black/10 bg-white/70 p-2 transition-all duration-200 ease-out lg:min-h-[140px] ${
+                              cell.isVisibleMonth
+                                ? `${cell.isSelectedDayCell ? "border-black/25 bg-black/[0.05] ring-2 ring-black/15 " : cell.isTodayCell ? "border-black/20 bg-black/[0.03] ring-2 ring-black/10 " : ""}shadow-[0_10px_24px_-22px_rgb(15_23_42/0.9)] hover:-translate-y-[1px] hover:shadow-[0_14px_26px_-20px_rgb(15_23_42/0.85)]`
+                                : "border-transparent bg-transparent"
+                            }`}
+                          >
+                            {cell.isVisibleMonth && cell.dayDate ? (
+                              <>
+                                <Link
+                                  href={cell.dayToggleHref}
+                                  aria-label={
+                                    cell.isSelectedDayCell
+                                      ? `Close tasks for ${cell.dayNumber}`
+                                      : `Open tasks for ${cell.dayNumber}`
+                                  }
+                                  className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+                                />
+                                <div className="relative z-10 min-w-0 pointer-events-none">
+                                  <p>
+                                    <span
+                                      className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                                        cell.isTodayCell ? "bg-black text-white" : "text-slate-800"
+                                      }`}
+                                    >
+                                      {cell.dayNumber}
+                                    </span>
+                                  </p>
+                                  <div className="mt-1 min-w-0 space-y-1">
+                                    {cell.dayTasksForCell.length === 0 ? (
+                                      <p className="text-xs font-medium text-slate-400">Sin tareas</p>
+                                    ) : (
+                                      cell.dayTasksForCell.slice(0, 3).map((task, taskIndex) => (
+                                        <CalendarTaskPill
+                                          key={task.id}
+                                          href={openTaskHref(task.id)}
+                                          title={task.title}
+                                          toneClass={priorityPillTone(task.priority)}
+                                          timeLabel={
+                                            task.dueDate.getHours() === 0 && task.dueDate.getMinutes() === 0
+                                              ? undefined
+                                              : timeFormatter.format(task.dueDate)
+                                          }
+                                          className={`pointer-events-auto ${task.isCompleted ? "line-through opacity-60" : ""} ${
+                                            taskIndex === 2 ? "hidden lg:flex" : ""
+                                          }`}
+                                        />
+                                      ))
+                                    )}
+                                    {cell.dayTasksForCell.length > 2 ? (
+                                      <Link
+                                        href={cell.dayToggleHref}
+                                        className="pointer-events-auto inline-flex rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:bg-slate-200 lg:hidden"
+                                      >
+                                        +{cell.dayTasksForCell.length - 2} more
+                                      </Link>
+                                    ) : null}
+                                    {cell.dayTasksForCell.length > 3 ? (
+                                      <Link
+                                        href={cell.dayToggleHref}
+                                        className="pointer-events-auto hidden rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:bg-slate-200 lg:inline-flex"
+                                      >
+                                        +{cell.dayTasksForCell.length - 3} more
+                                      </Link>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </>
+                            ) : null}
+                          </article>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {isDaySheetOpen && resolvedDaySheetDate ? renderDayDetailsPanel("desktop") : null}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      {selectedTask ? (
+        <aside className="hidden min-h-0 min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 lg:flex lg:h-[calc(100dvh-128px)] lg:flex-col lg:sticky lg:top-24">
+          <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3">
+            <p className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">Task detail</p>
+            <Link
+              href={closeTaskHref}
+              className="inline-flex h-8 items-center rounded-lg border border-black/10 px-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+            >
+              Close
+            </Link>
+          </div>
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            <div>
+              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Title</p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-900">{selectedTask.title}</h2>
+            </div>
+            <div>
+              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Due date</p>
+              <p className="mt-1 text-sm font-medium capitalize text-slate-700">
+                {selectedTask.dueDate ? detailDateFormatter.format(selectedTask.dueDate) : "No due date"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Priority</p>
+              <span className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${priorityTone(selectedTask.priority)}`}>
+                {selectedTask.priority}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Status</p>
+              <p className="mt-1 text-sm font-medium text-slate-700">
+                {selectedTask.isCompleted ? "Completed" : "Pending"}
+              </p>
+            </div>
+          </div>
+        </aside>
+      ) : null}
+      </div>
+      {isSidebarSheetOpen ? (
+        <div className="fixed inset-0 z-[125] lg:hidden" role="presentation">
+          <SheetA11yBridge closeHref={closeSidebarHref} initialFocusId="calendar-filters-close" />
+          <Link
+            href={closeSidebarHref}
+            aria-label="Close filters"
+            className="ui-overlay-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+          />
+          <aside
+            id="calendar-filters-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Calendar filters"
+            className="ui-sheet-in-right absolute inset-y-0 left-0 z-[1] h-full w-full max-w-full border-r border-black/10 bg-white/95 pt-[max(0px,env(safe-area-inset-top))] shadow-[0_22px_56px_-36px_rgb(15_23_42/0.72)] backdrop-blur-sm sm:max-w-md sm:rounded-r-3xl"
+          >
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="border-b border-black/10 bg-white/95 px-4 py-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">Filters</p>
+                    <p className="mt-1 text-xs text-black/45">Refine visible tasks in the current calendar view.</p>
+                  </div>
+                  <Link
+                    id="calendar-filters-close"
+                    href={closeSidebarHref}
+                    className="inline-flex h-11 items-center rounded-xl border border-black/10 bg-white/75 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                  >
+                    Close
+                  </Link>
+                </div>
+                {hasActiveFilters ? (
+                  <div className="mt-3">
+                    <Link
+                      href={clearFiltersHref}
+                      className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white/75 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                    >
+                      <span aria-hidden>↺</span>
+                      Reset all
+                    </Link>
+                  </div>
+                ) : null}
+                {hasActiveFilters ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {activeFilters.map((filter) => (
+                      <Link
+                        key={filter.id}
+                        href={filter.href}
+                        className="inline-flex h-10 max-w-full items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                      >
+                        <span className="truncate">{filter.label}</span>
+                        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/5 text-[11px] leading-none text-black/65">
+                          ×
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {renderSidebarPanelContent("sheet")}
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      {selectedTask ? (
+        <div className="fixed inset-0 z-[130] lg:hidden" role="presentation">
+          <SheetA11yBridge closeHref={closeTaskHref} initialFocusId="calendar-task-close" />
+          <Link
+            href={closeTaskHref}
+            aria-label="Close task details"
+            className="ui-overlay-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+          />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Task detail"
+            className="ui-sheet-in-right absolute inset-y-0 right-0 z-[1] h-full w-full border-l border-slate-200/80 bg-white/95 pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] shadow-[0_22px_56px_-36px_rgb(15_23_42/0.72)] backdrop-blur-sm sm:max-w-lg"
+          >
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3">
+                <p className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">Task detail</p>
+                <Link
+                  id="calendar-task-close"
+                  href={closeTaskHref}
+                  className="inline-flex h-8 items-center rounded-lg border border-black/10 px-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+                >
+                  Close
+                </Link>
+              </div>
+              <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Title</p>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-900">{selectedTask.title}</h2>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Due date</p>
+                  <p className="mt-1 text-sm font-medium capitalize text-slate-700">
+                    {selectedTask.dueDate ? detailDateFormatter.format(selectedTask.dueDate) : "No due date"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Priority</p>
+                  <span className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${priorityTone(selectedTask.priority)}`}>
+                    {selectedTask.priority}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Status</p>
+                  <p className="mt-1 text-sm font-medium text-slate-700">
+                    {selectedTask.isCompleted ? "Completed" : "Pending"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
     </section>
   );
 }
