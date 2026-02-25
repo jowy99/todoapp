@@ -560,6 +560,30 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
     startEditing(task);
   }
 
+  function handleSidebarRequestCreateList() {
+    if (isSidebarCollapsed && !isMobileSidebarOpen) {
+      setIsSidebarCollapsed(false);
+      setShowTagCreator(false);
+      setShowListCreator(true);
+      return;
+    }
+
+    setShowTagCreator(false);
+    setShowListCreator((prev) => !prev);
+  }
+
+  function handleSidebarRequestCreateTag() {
+    if (isSidebarCollapsed && !isMobileSidebarOpen) {
+      setIsSidebarCollapsed(false);
+      setShowListCreator(false);
+      setShowTagCreator(true);
+      return;
+    }
+
+    setShowListCreator(false);
+    setShowTagCreator((prev) => !prev);
+  }
+
   function updateFilters(updates: Partial<{ view: TaskView; listId: string | null; tagId: string | null }>) {
     const params = new URLSearchParams(searchParams.toString());
     if (updates.view !== undefined) {
@@ -743,15 +767,31 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
             onSelectTag={handleSelectTag}
             onClearListFilter={handleClearListFilter}
             onClearTagFilter={handleClearTagFilter}
+            onRequestCreateList={handleSidebarRequestCreateList}
+            onRequestCreateTag={handleSidebarRequestCreateTag}
+            isListCreatorOpen={showListCreator}
+            isTagCreatorOpen={showTagCreator}
+            listDraftName={listName}
+            listDraftColor={listColor}
+            tagDraftName={tagName}
+            tagDraftColor={tagColor}
+            isCreatingDisabled={isBusy}
+            onListDraftNameChange={setListName}
+            onListDraftColorChange={setListColor}
+            onTagDraftNameChange={setTagName}
+            onTagDraftColorChange={setTagColor}
+            onCreateListSubmit={handleCreateList}
+            onCreateTagSubmit={handleCreateTag}
           />
         }
         main={
-          <section className="todo-main-pane space-y-4 px-3 py-4 sm:px-4 sm:py-5 md:px-7 md:py-7">
-            <div className="flex items-end justify-between border-b border-slate-200/85 pb-4">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <button
-                  type="button"
-                  aria-label="Abrir menu"
+          <section className="todo-main-pane flex h-full min-h-0 flex-col px-3 py-4 sm:px-4 sm:py-5 md:px-7 md:py-7">
+            <div className="shrink-0">
+              <div className="flex items-end justify-between border-b border-slate-200/85 pb-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    aria-label="Abrir menu"
                   onClick={() => setIsMobileSidebarOpen(true)}
                   className="todo-main-menu-btn ui-btn ui-btn--secondary ui-btn--icon rounded-2xl md:hidden"
                 >
@@ -771,519 +811,422 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
               <p className="todo-main-count ui-pill ui-pill--count text-sm sm:text-base">
                 {visibleTaskCount}
               </p>
-            </div>
-
-            <form onSubmit={handleCreateTask} className="space-y-3 border-b border-slate-200/85 pb-4">
-              <div className="todo-quick-add flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/88 p-2.5 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.65)] transition-all duration-200 ease-out hover:border-slate-300 focus-within:border-slate-300 focus-within:shadow-[0_0_0_2px_rgb(15_23_42/0.14)] sm:flex-row sm:items-center sm:gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5">
-                  <span className="text-xl leading-none text-slate-500" aria-hidden>
-                    +
-                  </span>
-                  <input
-                    required
-                    value={taskForm.title}
-                    onChange={(event) =>
-                      setTaskForm((prev) => ({ ...prev, title: event.target.value }))
-                    }
-                    placeholder="Add New Task"
-                    className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-base leading-none font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
-                  />
-                </div>
-
-                <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
-                  <button
-                    type="submit"
-                    disabled={isBusy || !taskForm.title.trim() || !canCreateInSelectedList}
-                    className="ui-btn ui-btn--primary h-11 min-h-11 w-full rounded-xl px-4 text-sm sm:h-10 sm:min-h-10 sm:w-auto"
-                  >
-                    Add
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (showTaskDetails) {
-                        setShowListCreator(false);
-                        setShowTagCreator(false);
-                      }
-                      setShowTaskDetails((prev) => !prev);
-                    }}
-                    className="ui-btn ui-btn--secondary h-11 min-h-11 w-full rounded-xl px-4 text-sm sm:h-10 sm:min-h-10 sm:w-auto"
-                  >
-                    {showTaskDetails ? "Less" : "More"}
-                  </button>
-                </div>
               </div>
 
-              {showTaskDetails ? (
-                <div className="ui-card space-y-3 rounded-2xl border p-3">
-                  <Textarea
-                    value={taskForm.description}
-                    onChange={(event) =>
-                      setTaskForm((prev) => ({ ...prev, description: event.target.value }))
-                    }
-                    placeholder="Descripción (opcional)"
-                    rows={3}
-                    className="ui-field w-full text-sm"
-                  />
-
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <label className="block space-y-1 text-sm">
-                      <span className="font-semibold text-slate-500">Fecha límite</span>
-                      <Input
-                        type="datetime-local"
-                        value={taskForm.dueDate}
-                        onChange={(event) =>
-                          setTaskForm((prev) => ({ ...prev, dueDate: event.target.value }))
-                        }
-                        className="ui-field w-full"
-                      />
-                    </label>
-                    <label className="block space-y-1 text-sm">
-                      <span className="font-semibold text-slate-500">Prioridad</span>
-                      <Select
-                        value={taskForm.priority}
-                        onChange={(event) =>
-                          setTaskForm((prev) => ({
-                            ...prev,
-                            priority: event.target.value as Priority,
-                          }))
-                        }
-                        className="ui-field w-full"
-                      >
-                        {priorities.map((priority) => (
-                          <option key={priority} value={priority}>
-                            {priority}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                    <label className="block space-y-1 text-sm">
-                      <span className="font-semibold text-slate-500">Estado</span>
-                      <Select
-                        value={taskForm.status}
-                        onChange={(event) =>
-                          setTaskForm((prev) => ({
-                            ...prev,
-                            status: event.target.value as Status,
-                          }))
-                        }
-                        className="ui-field w-full"
-                      >
-                        {statuses.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </Select>
-                    </label>
-                  </div>
-
-                  <label className="block space-y-1 text-sm">
-                    <span className="font-semibold text-slate-500">Lista</span>
-                    <Select
-                      value={taskForm.listId}
+              <form onSubmit={handleCreateTask} className="mt-4 space-y-3 border-b border-slate-200/85 pb-4">
+                <div className="todo-quick-add flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/88 p-2.5 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.65)] transition-all duration-200 ease-out hover:border-slate-300 focus-within:border-slate-300 focus-within:shadow-[0_0_0_2px_rgb(15_23_42/0.14)] sm:flex-row sm:items-center sm:gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5">
+                    <span className="text-xl leading-none text-slate-500" aria-hidden>
+                      +
+                    </span>
+                    <input
+                      required
+                      value={taskForm.title}
                       onChange={(event) =>
-                        setTaskForm((prev) => ({ ...prev, listId: event.target.value }))
+                        setTaskForm((prev) => ({ ...prev, title: event.target.value }))
                       }
-                      className="ui-field w-full"
-                    >
-                      <option value="">Sin lista</option>
-                      {lists.map((list) => (
-                        <option key={list.id} value={list.id} disabled={list.canEdit === false}>
-                          {list.name}
-                          {list.isShared ? ` · ${list.accessRole}` : ""}
-                          {list.canEdit === false ? " · solo lectura" : ""}
-                        </option>
-                      ))}
-                    </Select>
-                  </label>
+                      placeholder="Add New Task"
+                      className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-base leading-none font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+                    />
+                  </div>
 
-                  {selectedList && selectedList.canEdit === false ? (
-                    <p className="ui-alert ui-alert--danger text-xs">
-                      Esta lista está compartida en modo solo lectura para ti.
-                    </p>
-                  ) : null}
-
-                  <fieldset className="space-y-2">
-                    <legend className="text-sm font-semibold text-slate-500">Etiquetas</legend>
-                    <div className="flex flex-wrap gap-2">
-                      {tags.length === 0 ? (
-                        <span className="text-muted text-sm">
-                          No hay etiquetas todavía. Usa “Etiqueta rápida” para crear una.
-                        </span>
-                      ) : null}
-                      {tags.map((tag) => {
-                        const selected = taskForm.tagIds.includes(tag.id);
-
-                        return (
-                          <label
-                            key={tag.id}
-                            className={`ui-chip cursor-pointer px-3 py-1 text-xs font-semibold ${
-                              selected
-                                ? "border-accent bg-accent text-white"
-                                : "text-foreground hover:bg-slate-100"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selected}
-                              onChange={() => toggleFormTag(tag.id, "create")}
-                              className="sr-only"
-                            />
-                            {tag.name}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
                     <button
-                      type="button"
-                      onClick={() => setShowListCreator((prev) => !prev)}
-                      className="ui-btn ui-btn--secondary ui-btn--compact rounded-xl px-3 py-2 text-xs"
+                      type="submit"
+                      disabled={isBusy || !taskForm.title.trim() || !canCreateInSelectedList}
+                      className="ui-btn ui-btn--primary h-11 min-h-11 w-full rounded-xl px-4 text-sm sm:h-10 sm:min-h-10 sm:w-auto"
                     >
-                      {showListCreator ? "Cerrar lista rápida" : "+ Lista rápida"}
+                      Add
                     </button>
                     <button
                       type="button"
-                      onClick={() => setShowTagCreator((prev) => !prev)}
-                      className="ui-btn ui-btn--secondary ui-btn--compact rounded-xl px-3 py-2 text-xs"
+                      onClick={() => {
+                        if (showTaskDetails) {
+                          setShowListCreator(false);
+                          setShowTagCreator(false);
+                        }
+                        setShowTaskDetails((prev) => !prev);
+                      }}
+                      className="ui-btn ui-btn--secondary h-11 min-h-11 w-full rounded-xl px-4 text-sm sm:h-10 sm:min-h-10 sm:w-auto"
                     >
-                      {showTagCreator ? "Cerrar etiqueta rápida" : "+ Etiqueta rápida"}
+                      {showTaskDetails ? "Less" : "More"}
                     </button>
                   </div>
                 </div>
-              ) : null}
-            </form>
 
-            {showListCreator || showTagCreator ? (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {showListCreator ? (
-                  <form
-                    onSubmit={handleCreateList}
-                    className="ui-card space-y-3 rounded-2xl p-3"
-                  >
-                    <p className="text-sm font-bold text-slate-800">Crear lista</p>
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <Input
-                        required
-                        value={listName}
-                        onChange={(event) => setListName(event.target.value)}
-                        placeholder="Ej: Personal"
-                        className="ui-field w-full text-sm"
-                      />
-                      <input
-                        type="color"
-                        value={listColor}
-                        onChange={(event) => setListColor(event.target.value)}
-                        className="border-border h-10 w-12 rounded-lg border bg-white p-1"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        disabled={isBusy || !listName.trim()}
-                        className="ui-btn ui-btn--primary ui-btn--compact rounded-xl px-3 py-2 text-xs"
-                      >
-                        Guardar lista
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowListCreator(false)}
-                        className="ui-btn ui-btn--secondary ui-btn--compact rounded-xl px-3 py-2 text-xs"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </form>
-                ) : null}
+                {showTaskDetails ? (
+                  <div className="ui-card space-y-3 rounded-2xl border p-3">
+                    <Textarea
+                      value={taskForm.description}
+                      onChange={(event) =>
+                        setTaskForm((prev) => ({ ...prev, description: event.target.value }))
+                      }
+                      placeholder="Descripción (opcional)"
+                      rows={3}
+                      className="ui-field w-full text-sm"
+                    />
 
-                {showTagCreator ? (
-                  <form
-                    onSubmit={handleCreateTag}
-                    className="ui-card space-y-3 rounded-2xl p-3"
-                  >
-                    <p className="text-sm font-bold text-slate-800">Crear etiqueta</p>
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <Input
-                        required
-                        value={tagName}
-                        onChange={(event) => setTagName(event.target.value)}
-                        placeholder="Ej: Reunión"
-                        className="ui-field w-full text-sm"
-                      />
-                      <input
-                        type="color"
-                        value={tagColor}
-                        onChange={(event) => setTagColor(event.target.value)}
-                        className="border-border h-10 w-12 rounded-lg border bg-white p-1"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        disabled={isBusy || !tagName.trim()}
-                        className="ui-btn ui-btn--accent ui-btn--compact rounded-xl px-3 py-2 text-xs"
-                      >
-                        Guardar etiqueta
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowTagCreator(false)}
-                        className="ui-btn ui-btn--secondary ui-btn--compact rounded-xl px-3 py-2 text-xs"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </form>
-                ) : null}
-              </div>
-            ) : null}
-
-            {filteredTasks.length === 0 ? (
-              <div className="ui-empty space-y-2.5">
-                <p>
-                  {hasListFilter || hasTagFilter || activeView !== "all"
-                    ? `No hay tareas para ${filterSummary.toLowerCase()}.`
-                    : "No tienes tareas aún."}
-                </p>
-                {hasListFilter || hasTagFilter ? (
-                  <p className="text-xs font-medium text-slate-500">
-                    Quita filtros de listas o etiquetas desde el menú lateral.
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-[0_20px_36px_-30px_rgb(15_23_42/0.75)]">
-              {filteredTasks.map((task) => {
-                const isEditing = editingTaskId === task.id;
-
-                return (
-                  <li
-                    key={task.id}
-                    className={`group border-b border-slate-200/90 p-3 transition-all duration-200 ease-out last:border-b-0 sm:p-4 ${
-                      isEditing
-                        ? "bg-slate-50/90 shadow-[inset_3px_0_0_0_rgb(15_23_42),0_12px_20px_-18px_rgb(15_23_42/0.55)]"
-                        : "bg-white hover:bg-slate-50/70 hover:shadow-[inset_2px_0_0_0_rgb(15_23_42/0.35)]"
-                    }`}
-                  >
-                    <div
-                      className="flex cursor-pointer items-start justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => void toggleTaskCompletion(task)}
-                      onKeyDown={(event) => {
-                        if (event.target !== event.currentTarget) {
-                          return;
-                        }
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          void toggleTaskCompletion(task);
-                        }
-                      }}
-                    >
-                      <div className="flex min-w-0 items-start gap-3">
-                        <input
-                          type="checkbox"
-                          aria-label={`Marcar ${task.title}`}
-                          checked={task.isCompleted}
-                          disabled={!task.canEdit}
-                          onClick={(event) => event.stopPropagation()}
-                          onChange={() => void toggleTaskCompletion(task)}
-                          className="accent-success mt-1 h-4 w-4 rounded-[4px]"
-                        />
-                        <div className="min-w-0 text-left">
-                          <p
-                            className={`truncate text-base leading-tight font-semibold transition-colors duration-200 sm:text-lg md:text-[22px] ${
-                              task.isCompleted ? "text-slate-400 line-through" : "text-slate-900"
-                            }`}
-                          >
-                            {task.title}
-                          </p>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                            {task.dueDate ? (
-                              <span className="ui-chip ui-chip--meta">
-                                {new Date(task.dueDate).toLocaleDateString("es-ES")}
-                              </span>
-                            ) : null}
-                            <span className="ui-chip ui-chip--meta">
-                              {task.priority}
-                            </span>
-                            <span className="ui-chip ui-chip--meta">
-                              {task.status}
-                            </span>
-                            {task.list ? (
-                              <span className="ui-chip ui-chip--meta inline-flex items-center gap-1">
-                                <span
-                                  className="h-2 w-2 rounded-[3px]"
-                                  style={{ backgroundColor: task.list.color ?? "#f87171" }}
-                                />
-                                {task.list.name}
-                              </span>
-                            ) : (
-                              <span className="ui-chip ui-chip--meta">
-                                Sin lista
-                              </span>
-                            )}
-                            {task.tags[0] ? (
-                              <span className="ui-chip ui-chip--meta">
-                                {task.tags[0].tag.name}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={!task.canEdit}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleTaskDetails(task);
-                          }}
-                          aria-label={`${isEditing ? "Cerrar" : "Abrir"} detalle de ${task.title}`}
-                          className={`ui-btn ui-btn--secondary ui-btn--icon h-9 w-9 rounded-xl text-slate-500 opacity-90 transition-all duration-200 group-hover:opacity-100 disabled:opacity-50 ${
-                            isEditing ? "ui-btn--active-dark" : ""
-                          }`}
-                        >
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-                            <path
-                              d={isEditing ? "m14 7-5 5 5 5" : "m10 7 5 5-5 5"}
-                              stroke="currentColor"
-                              strokeWidth="1.8"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-
-                    {isEditing && showInlineEditForm ? (
-                      <form
-                        onSubmit={handleSaveEdit}
-                        className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-white p-3"
-                      >
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <label className="block space-y-1 text-sm">
+                        <span className="font-semibold text-slate-500">Fecha límite</span>
                         <Input
-                          required
-                          value={editingForm.title}
+                          type="datetime-local"
+                          value={taskForm.dueDate}
                           onChange={(event) =>
-                            setEditingForm((prev) => ({ ...prev, title: event.target.value }))
+                            setTaskForm((prev) => ({ ...prev, dueDate: event.target.value }))
                           }
-                          className="ui-field w-full text-sm"
+                          className="ui-field w-full"
                         />
-                        <Textarea
-                          rows={2}
-                          value={editingForm.description}
-                          onChange={(event) =>
-                            setEditingForm((prev) => ({ ...prev, description: event.target.value }))
-                          }
-                          className="ui-field w-full text-sm"
-                        />
-                        <div className="grid gap-3 md:grid-cols-3">
-                          <Input
-                            type="datetime-local"
-                            value={editingForm.dueDate}
-                            onChange={(event) =>
-                              setEditingForm((prev) => ({ ...prev, dueDate: event.target.value }))
-                            }
-                            className="ui-field text-sm"
-                          />
-                          <Select
-                            value={editingForm.priority}
-                            onChange={(event) =>
-                              setEditingForm((prev) => ({
-                                ...prev,
-                                priority: event.target.value as Priority,
-                              }))
-                            }
-                            className="ui-field text-sm"
-                          >
-                            {priorities.map((priority) => (
-                              <option key={priority} value={priority}>
-                                {priority}
-                              </option>
-                            ))}
-                          </Select>
-                          <Select
-                            value={editingForm.status}
-                            onChange={(event) =>
-                              setEditingForm((prev) => ({
-                                ...prev,
-                                status: event.target.value as Status,
-                              }))
-                            }
-                            className="ui-field text-sm"
-                          >
-                            {statuses.map((status) => (
-                              <option key={status} value={status}>
-                                {status}
-                              </option>
-                            ))}
-                          </Select>
-                        </div>
+                      </label>
+                      <label className="block space-y-1 text-sm">
+                        <span className="font-semibold text-slate-500">Prioridad</span>
                         <Select
-                          value={editingForm.listId}
+                          value={taskForm.priority}
                           onChange={(event) =>
-                            setEditingForm((prev) => ({ ...prev, listId: event.target.value }))
+                            setTaskForm((prev) => ({
+                              ...prev,
+                              priority: event.target.value as Priority,
+                            }))
                           }
-                          className="ui-field w-full text-sm"
+                          className="ui-field w-full"
                         >
-                          <option value="">Sin lista</option>
-                          {lists.map((list) => (
-                            <option key={list.id} value={list.id} disabled={list.canEdit === false}>
-                              {list.name}
-                              {list.isShared ? ` · ${list.accessRole}` : ""}
-                              {list.canEdit === false ? " · solo lectura" : ""}
+                          {priorities.map((priority) => (
+                            <option key={priority} value={priority}>
+                              {priority}
                             </option>
                           ))}
                         </Select>
-                        <div className="flex flex-wrap gap-2">
-                          {tags.map((tag) => {
-                            const selected = editingForm.tagIds.includes(tag.id);
+                      </label>
+                      <label className="block space-y-1 text-sm">
+                        <span className="font-semibold text-slate-500">Estado</span>
+                        <Select
+                          value={taskForm.status}
+                          onChange={(event) =>
+                            setTaskForm((prev) => ({
+                              ...prev,
+                              status: event.target.value as Status,
+                            }))
+                          }
+                          className="ui-field w-full"
+                        >
+                          {statuses.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+                    </div>
 
-                            return (
-                              <label
-                                key={tag.id}
-                                className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold ${
-                                  selected
-                                    ? "border-accent bg-accent text-white"
-                                    : "border-border bg-surface text-foreground"
+                    <label className="block space-y-1 text-sm">
+                      <span className="font-semibold text-slate-500">Lista</span>
+                      <Select
+                        value={taskForm.listId}
+                        onChange={(event) =>
+                          setTaskForm((prev) => ({ ...prev, listId: event.target.value }))
+                        }
+                        className="ui-field w-full"
+                      >
+                        <option value="">Sin lista</option>
+                        {lists.map((list) => (
+                          <option key={list.id} value={list.id} disabled={list.canEdit === false}>
+                            {list.name}
+                            {list.isShared ? ` · ${list.accessRole}` : ""}
+                            {list.canEdit === false ? " · solo lectura" : ""}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+
+                    {selectedList && selectedList.canEdit === false ? (
+                      <p className="ui-alert ui-alert--danger text-xs">
+                        Esta lista está compartida en modo solo lectura para ti.
+                      </p>
+                    ) : null}
+
+                    <fieldset className="space-y-2">
+                      <legend className="text-sm font-semibold text-slate-500">Etiquetas</legend>
+                      <div className="flex flex-wrap gap-2">
+                        {tags.length === 0 ? (
+                          <span className="text-muted text-sm">
+                            No hay etiquetas todavía. Usa “+” en el bloque TAGS del menú lateral.
+                          </span>
+                        ) : null}
+                        {tags.map((tag) => {
+                          const selected = taskForm.tagIds.includes(tag.id);
+
+                          return (
+                            <label
+                              key={tag.id}
+                              className={`ui-chip cursor-pointer px-3 py-1 text-xs font-semibold ${
+                                selected
+                                  ? "border-accent bg-accent text-white"
+                                  : "text-foreground hover:bg-slate-100"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => toggleFormTag(tag.id, "create")}
+                                className="sr-only"
+                              />
+                              {tag.name}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
+                  </div>
+                ) : null}
+              </form>
+            </div>
+
+            <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+              {filteredTasks.length === 0 ? (
+                <div className="ui-empty space-y-2.5">
+                  <p>
+                    {hasListFilter || hasTagFilter || activeView !== "all"
+                      ? `No hay tareas para ${filterSummary.toLowerCase()}.`
+                      : "No tienes tareas aún."}
+                  </p>
+                  {hasListFilter || hasTagFilter ? (
+                    <p className="text-xs font-medium text-slate-500">
+                      Quita filtros de listas o etiquetas desde el menú lateral.
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-[0_20px_36px_-30px_rgb(15_23_42/0.75)]">
+                  {filteredTasks.map((task) => {
+                    const isEditing = editingTaskId === task.id;
+
+                    return (
+                      <li
+                        key={task.id}
+                        className={`group border-b border-slate-200/90 p-3 transition-all duration-200 ease-out last:border-b-0 sm:p-4 ${
+                          isEditing
+                            ? "bg-slate-50/90 shadow-[inset_3px_0_0_0_rgb(15_23_42),0_12px_20px_-18px_rgb(15_23_42/0.55)]"
+                            : "bg-white hover:bg-slate-50/70 hover:shadow-[inset_2px_0_0_0_rgb(15_23_42/0.35)]"
+                        }`}
+                      >
+                        <div
+                          className="flex cursor-pointer items-start justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => void toggleTaskCompletion(task)}
+                          onKeyDown={(event) => {
+                            if (event.target !== event.currentTarget) {
+                              return;
+                            }
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              void toggleTaskCompletion(task);
+                            }
+                          }}
+                        >
+                          <div className="flex min-w-0 items-start gap-3">
+                            <input
+                              type="checkbox"
+                              aria-label={`Marcar ${task.title}`}
+                              checked={task.isCompleted}
+                              disabled={!task.canEdit}
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={() => void toggleTaskCompletion(task)}
+                              className="accent-success mt-1 h-4 w-4 rounded-[4px]"
+                            />
+                            <div className="min-w-0 text-left">
+                              <p
+                                className={`truncate text-base leading-tight font-semibold transition-colors duration-200 sm:text-lg md:text-[22px] ${
+                                  task.isCompleted ? "text-slate-400 line-through" : "text-slate-900"
                                 }`}
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={selected}
-                                  onChange={() => toggleFormTag(tag.id, "edit")}
-                                  className="sr-only"
+                                {task.title}
+                              </p>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                {task.dueDate ? (
+                                  <span className="ui-chip ui-chip--meta">
+                                    {new Date(task.dueDate).toLocaleDateString("es-ES")}
+                                  </span>
+                                ) : null}
+                                <span className="ui-chip ui-chip--meta">
+                                  {task.priority}
+                                </span>
+                                <span className="ui-chip ui-chip--meta">
+                                  {task.status}
+                                </span>
+                                {task.list ? (
+                                  <span className="ui-chip ui-chip--meta inline-flex items-center gap-1">
+                                    <span
+                                      className="h-2 w-2 rounded-[3px]"
+                                      style={{ backgroundColor: task.list.color ?? "#f87171" }}
+                                    />
+                                    {task.list.name}
+                                  </span>
+                                ) : (
+                                  <span className="ui-chip ui-chip--meta">
+                                    Sin lista
+                                  </span>
+                                )}
+                                {task.tags[0] ? (
+                                  <span className="ui-chip ui-chip--meta">
+                                    {task.tags[0].tag.name}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={!task.canEdit}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleTaskDetails(task);
+                              }}
+                              aria-label={`${isEditing ? "Cerrar" : "Abrir"} detalle de ${task.title}`}
+                              className={`ui-btn ui-btn--secondary ui-btn--icon h-9 w-9 rounded-xl text-slate-500 opacity-90 transition-all duration-200 group-hover:opacity-100 disabled:opacity-50 ${
+                                isEditing ? "ui-btn--active-dark" : ""
+                              }`}
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
+                                <path
+                                  d={isEditing ? "m14 7-5 5 5 5" : "m10 7 5 5-5 5"}
+                                  stroke="currentColor"
+                                  strokeWidth="1.8"
                                 />
-                                {tag.name}
-                              </label>
-                            );
-                          })}
+                              </svg>
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            type="submit"
-                            disabled={isBusy || !editingForm.title.trim()}
-                            className="bg-primary-strong hover:bg-primary rounded-lg px-3 py-2 text-xs font-semibold text-white transition disabled:opacity-60"
+
+                        {isEditing && showInlineEditForm ? (
+                          <form
+                            onSubmit={handleSaveEdit}
+                            className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-white p-3"
                           >
-                            Guardar cambios
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingTaskId(null)}
-                            className="border-border/80 hover:bg-surface rounded-lg border px-3 py-2 text-xs font-semibold transition"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </form>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+                            <Input
+                              required
+                              value={editingForm.title}
+                              onChange={(event) =>
+                                setEditingForm((prev) => ({ ...prev, title: event.target.value }))
+                              }
+                              className="ui-field w-full text-sm"
+                            />
+                            <Textarea
+                              rows={2}
+                              value={editingForm.description}
+                              onChange={(event) =>
+                                setEditingForm((prev) => ({ ...prev, description: event.target.value }))
+                              }
+                              className="ui-field w-full text-sm"
+                            />
+                            <div className="grid gap-3 md:grid-cols-3">
+                              <Input
+                                type="datetime-local"
+                                value={editingForm.dueDate}
+                                onChange={(event) =>
+                                  setEditingForm((prev) => ({ ...prev, dueDate: event.target.value }))
+                                }
+                                className="ui-field text-sm"
+                              />
+                              <Select
+                                value={editingForm.priority}
+                                onChange={(event) =>
+                                  setEditingForm((prev) => ({
+                                    ...prev,
+                                    priority: event.target.value as Priority,
+                                  }))
+                                }
+                                className="ui-field text-sm"
+                              >
+                                {priorities.map((priority) => (
+                                  <option key={priority} value={priority}>
+                                    {priority}
+                                  </option>
+                                ))}
+                              </Select>
+                              <Select
+                                value={editingForm.status}
+                                onChange={(event) =>
+                                  setEditingForm((prev) => ({
+                                    ...prev,
+                                    status: event.target.value as Status,
+                                  }))
+                                }
+                                className="ui-field text-sm"
+                              >
+                                {statuses.map((status) => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </Select>
+                            </div>
+                            <Select
+                              value={editingForm.listId}
+                              onChange={(event) =>
+                                setEditingForm((prev) => ({ ...prev, listId: event.target.value }))
+                              }
+                              className="ui-field w-full text-sm"
+                            >
+                              <option value="">Sin lista</option>
+                              {lists.map((list) => (
+                                <option key={list.id} value={list.id} disabled={list.canEdit === false}>
+                                  {list.name}
+                                  {list.isShared ? ` · ${list.accessRole}` : ""}
+                                  {list.canEdit === false ? " · solo lectura" : ""}
+                                </option>
+                              ))}
+                            </Select>
+                            <div className="flex flex-wrap gap-2">
+                              {tags.map((tag) => {
+                                const selected = editingForm.tagIds.includes(tag.id);
+
+                                return (
+                                  <label
+                                    key={tag.id}
+                                    className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold ${
+                                      selected
+                                        ? "border-accent bg-accent text-white"
+                                        : "border-border bg-surface text-foreground"
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selected}
+                                      onChange={() => toggleFormTag(tag.id, "edit")}
+                                      className="sr-only"
+                                    />
+                                    {tag.name}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="submit"
+                                disabled={isBusy || !editingForm.title.trim()}
+                                className="bg-primary-strong hover:bg-primary rounded-lg px-3 py-2 text-xs font-semibold text-white transition disabled:opacity-60"
+                              >
+                                Guardar cambios
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingTaskId(null)}
+                                className="border-border/80 hover:bg-surface rounded-lg border px-3 py-2 text-xs font-semibold transition"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </form>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </section>
         }
         detail={
@@ -1338,6 +1281,21 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
             onSelectTag={handleSelectTag}
             onClearListFilter={handleClearListFilter}
             onClearTagFilter={handleClearTagFilter}
+            onRequestCreateList={handleSidebarRequestCreateList}
+            onRequestCreateTag={handleSidebarRequestCreateTag}
+            isListCreatorOpen={showListCreator}
+            isTagCreatorOpen={showTagCreator}
+            listDraftName={listName}
+            listDraftColor={listColor}
+            tagDraftName={tagName}
+            tagDraftColor={tagColor}
+            isCreatingDisabled={isBusy}
+            onListDraftNameChange={setListName}
+            onListDraftColorChange={setListColor}
+            onTagDraftNameChange={setTagName}
+            onTagDraftColorChange={setTagColor}
+            onCreateListSubmit={handleCreateList}
+            onCreateTagSubmit={handleCreateTag}
           />
         </aside>
       </div>

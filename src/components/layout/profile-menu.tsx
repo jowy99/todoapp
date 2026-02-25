@@ -40,6 +40,20 @@ function UserIcon() {
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="M12 3v2.2M12 18.8V21M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M3 12h2.2M18.8 12H21M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
@@ -151,6 +165,14 @@ export function ProfileMenu({ userLabel, navItems }: ProfileMenuProps) {
             </div>
             <div className="my-2 border-t border-slate-200" />
           </div>
+          <Link
+            href="/profile"
+            onClick={() => setIsOpen(false)}
+            className="hover:bg-surface-strong mt-1 flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+          >
+            <SettingsIcon />
+            Settings
+          </Link>
           <Link
             href="/profile"
             onClick={() => setIsOpen(false)}
