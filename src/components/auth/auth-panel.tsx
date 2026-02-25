@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/client-api";
+import { Input } from "@/components/ui/input";
 
 type AuthMode = "login" | "register";
 
@@ -56,7 +57,7 @@ export function AuthPanel() {
   }
 
   return (
-    <section className="border-border/80 bg-surface/90 shadow-primary/10 relative w-full max-w-md overflow-hidden rounded-[1.6rem] border p-5 shadow-2xl backdrop-blur sm:rounded-[2rem] sm:p-7">
+    <section className="ui-card ui-card--hero shadow-primary/10 relative w-full max-w-md p-5 sm:p-7">
       <div
         aria-hidden
         className="bg-primary/15 pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full blur-2xl"
@@ -66,25 +67,25 @@ export function AuthPanel() {
         className="bg-accent/15 pointer-events-none absolute -bottom-20 -left-14 h-36 w-36 rounded-full blur-2xl"
       />
       <header className="mb-6 space-y-2">
-        <span className="bg-primary/10 text-primary-strong inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
+        <span className="ui-chip bg-primary/10 text-primary-strong inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
           Local-first
         </span>
-        <h1 className="text-primary-strong text-2xl font-black tracking-tight sm:text-3xl">
+        <h1 className="ui-title-xl text-primary-strong">
           Todo Studio
         </h1>
-        <p className="text-muted text-sm leading-relaxed">
+        <p className="ui-subtle leading-relaxed">
           Gestiona tus tareas locales con seguridad y sincronización futura.
         </p>
       </header>
 
-      <div className="border-border bg-surface-strong/85 mb-6 grid grid-cols-2 rounded-full border p-1">
+      <div className="ui-card mb-6 grid grid-cols-2 rounded-full p-1">
         <button
           type="button"
           onClick={() => setMode("login")}
-          className={`inline-flex min-h-11 items-center justify-center rounded-full px-3 py-2 text-sm font-semibold transition ${
+          className={`ui-btn rounded-full border-0 px-3 py-2 text-sm ${
             mode === "login"
               ? "bg-surface text-foreground shadow-[0_8px_20px_-14px_rgb(15_23_42/0.9)]"
-              : "text-muted"
+              : "ui-btn--ghost"
           }`}
         >
           Entrar
@@ -92,10 +93,10 @@ export function AuthPanel() {
         <button
           type="button"
           onClick={() => setMode("register")}
-          className={`inline-flex min-h-11 items-center justify-center rounded-full px-3 py-2 text-sm font-semibold transition ${
+          className={`ui-btn rounded-full border-0 px-3 py-2 text-sm ${
             mode === "register"
               ? "bg-surface text-foreground shadow-[0_8px_20px_-14px_rgb(15_23_42/0.9)]"
-              : "text-muted"
+              : "ui-btn--ghost"
           }`}
         >
           Registro
@@ -106,10 +107,10 @@ export function AuthPanel() {
         {mode === "register" ? (
           <label className="block space-y-1">
             <span className="text-sm font-medium">Nombre visible</span>
-            <input
+            <Input
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
-              className="border-border ring-primary w-full rounded-xl border bg-white/95 px-3 py-2 text-sm transition outline-none focus:ring-2"
+              className="ui-field w-full"
               placeholder="Tu nombre"
               autoComplete="name"
             />
@@ -118,12 +119,12 @@ export function AuthPanel() {
 
         <label className="block space-y-1">
           <span className="text-sm font-medium">Email</span>
-          <input
+          <Input
             required
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="border-border ring-primary w-full rounded-xl border bg-white/95 px-3 py-2 text-sm transition outline-none focus:ring-2"
+            className="ui-field w-full"
             placeholder="tu@email.com"
             autoComplete="email"
           />
@@ -131,26 +132,26 @@ export function AuthPanel() {
 
         <label className="block space-y-1">
           <span className="text-sm font-medium">Contraseña</span>
-          <input
+          <Input
             required
             type="password"
             minLength={8}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="border-border ring-primary w-full rounded-xl border bg-white/95 px-3 py-2 text-sm transition outline-none focus:ring-2"
+            className="ui-field w-full"
             placeholder="********"
             autoComplete={mode === "login" ? "current-password" : "new-password"}
           />
         </label>
 
         {error ? (
-          <p className="bg-danger/10 text-danger rounded-xl px-3 py-2 text-sm">{error}</p>
+          <p className="ui-alert ui-alert--danger">{error}</p>
         ) : null}
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="bg-primary-strong hover:bg-primary inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+          className="ui-btn ui-btn--primary w-full disabled:cursor-not-allowed"
         >
           {isSubmitting ? "Procesando..." : submitLabel}
         </button>

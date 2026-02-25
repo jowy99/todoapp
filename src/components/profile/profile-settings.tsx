@@ -2,6 +2,8 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { fetchApi } from "@/lib/client-api";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 type ProfileState = {
   displayName: string;
@@ -62,8 +64,8 @@ export function ProfileSettings({ email, initialProfile }: ProfileSettingsProps)
   }
 
   return (
-    <section className="space-y-4 sm:space-y-6">
-      <header className="border-border/80 bg-surface/92 overflow-hidden rounded-[1.4rem] border shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur sm:rounded-[1.75rem]">
+    <section className="min-w-0 space-y-5 sm:space-y-6">
+      <header className="ui-card ui-card--hero overflow-hidden">
         <div
           className="h-28 w-full bg-gradient-to-r from-teal-700 via-cyan-600 to-orange-500 sm:h-36"
           style={
@@ -97,91 +99,97 @@ export function ProfileSettings({ email, initialProfile }: ProfileSettingsProps)
           <p className="text-primary-strong mt-3 text-xs font-semibold tracking-[0.12em] uppercase">
             Perfil
           </p>
-          <h1 className="mt-3 text-xl font-black tracking-tight sm:text-2xl">
-            {profile.displayName.trim() || "Sin nombre visible"}
-          </h1>
-          <p className="text-muted text-sm">{email}</p>
-          <p className="text-muted mt-2 text-sm">
+          <h1 className="ui-title-lg mt-3 sm:text-2xl">{profile.displayName.trim() || "Sin nombre visible"}</h1>
+          <p className="ui-subtle">{email}</p>
+          <p className="ui-subtle mt-2">
             {profile.bio.trim() || "Agrega una bio corta para describirte en tu perfil."}
           </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="ui-chip bg-primary/10 text-primary-strong font-semibold">Cuenta local</span>
+            <span className="ui-chip bg-accent/10 text-slate-700 font-semibold">
+              {profile.isPublic ? "Visible públicamente" : "Solo privado"}
+            </span>
+          </div>
         </div>
       </header>
 
-      {error ? (
-        <p className="bg-danger/10 text-danger rounded-xl px-4 py-3 text-sm font-medium">{error}</p>
-      ) : null}
-      {notice ? (
-        <p className="bg-success/10 text-success rounded-xl px-4 py-3 text-sm font-medium">
-          {notice}
-        </p>
-      ) : null}
+      {error ? <p className="ui-alert ui-alert--danger">{error}</p> : null}
+      {notice ? <p className="ui-alert ui-alert--success">{notice}</p> : null}
 
-      <form
-        onSubmit={handleSave}
-        className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5"
-      >
-        <h2 className="text-lg font-bold">Editar perfil</h2>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Nombre visible</span>
-          <input
-            value={profile.displayName}
-            onChange={(event) =>
-              setProfile((prev) => ({ ...prev, displayName: event.target.value }))
-            }
-            className="border-border ring-primary w-full rounded-xl border bg-white/95 px-3 py-2 text-sm outline-none focus:ring-2"
-            placeholder="Tu nombre"
-            maxLength={60}
-          />
-        </label>
+      <form onSubmit={handleSave} className="ui-card space-y-5 p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="ui-kicker ui-kicker--muted">Configuración</p>
+            <h2 className="ui-title-lg mt-1">Editar perfil</h2>
+          </div>
+          <span
+            className={`ui-chip ui-chip--meta ${profile.isPublic ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700"}`}
+          >
+            {profile.isPublic ? "Público" : "Privado"}
+          </span>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">Nombre visible</span>
+            <Input
+              value={profile.displayName}
+              onChange={(event) => setProfile((prev) => ({ ...prev, displayName: event.target.value }))}
+              className="ui-field w-full"
+              placeholder="Tu nombre"
+              maxLength={60}
+            />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-sm font-medium">URL de avatar</span>
+            <Input
+              type="url"
+              value={profile.avatarUrl}
+              onChange={(event) => setProfile((prev) => ({ ...prev, avatarUrl: event.target.value }))}
+              className="ui-field w-full"
+              placeholder="https://..."
+            />
+          </label>
+        </div>
+
         <label className="block space-y-1">
           <span className="text-sm font-medium">Bio</span>
-          <textarea
+          <Textarea
             value={profile.bio}
             onChange={(event) => setProfile((prev) => ({ ...prev, bio: event.target.value }))}
-            className="border-border ring-primary w-full rounded-xl border bg-white/95 px-3 py-2 text-sm outline-none focus:ring-2"
+            className="ui-field w-full"
             rows={4}
             maxLength={280}
             placeholder="Cuéntanos algo de ti"
           />
           <span className="text-muted text-xs">{profile.bio.length}/280</span>
         </label>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">URL de avatar</span>
-          <input
-            type="url"
-            value={profile.avatarUrl}
-            onChange={(event) => setProfile((prev) => ({ ...prev, avatarUrl: event.target.value }))}
-            className="border-border ring-primary w-full rounded-xl border bg-white/95 px-3 py-2 text-sm outline-none focus:ring-2"
-            placeholder="https://..."
-          />
-        </label>
+
         <label className="block space-y-1">
           <span className="text-sm font-medium">URL de banner</span>
-          <input
+          <Input
             type="url"
             value={profile.bannerUrl}
             onChange={(event) => setProfile((prev) => ({ ...prev, bannerUrl: event.target.value }))}
-            className="border-border ring-primary w-full rounded-xl border bg-white/95 px-3 py-2 text-sm outline-none focus:ring-2"
+            className="ui-field w-full"
             placeholder="https://..."
           />
         </label>
-        <label className="inline-flex items-center gap-2 text-sm font-medium">
+
+        <label className="border-border bg-surface/75 inline-flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium">
           <input
             type="checkbox"
             checked={profile.isPublic}
-            onChange={(event) =>
-              setProfile((prev) => ({ ...prev, isPublic: event.target.checked }))
-            }
+            onChange={(event) => setProfile((prev) => ({ ...prev, isPublic: event.target.checked }))}
             className="accent-primary h-4 w-4"
           />
           Hacer perfil público
         </label>
-        <div>
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="bg-primary-strong hover:bg-primary inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-60 sm:w-auto"
-          >
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-muted text-xs">Los cambios se aplican al instante tras guardar.</p>
+          <button type="submit" disabled={isSaving} className="ui-btn ui-btn--primary w-full sm:w-auto">
             {isSaving ? "Guardando..." : "Guardar perfil"}
           </button>
         </div>

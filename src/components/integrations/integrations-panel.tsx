@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchApi } from "@/lib/client-api";
+import { Input } from "@/components/ui/input";
 
 type IntegrationsStatus = {
   google: {
@@ -165,8 +166,8 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
   }
 
   return (
-    <section className="space-y-4 sm:space-y-6">
-      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur sm:rounded-[1.75rem] sm:p-6">
+    <section className="min-w-0 space-y-5 sm:space-y-6">
+      <header className="ui-card ui-card--hero relative overflow-hidden p-5 sm:p-6">
         <div
           aria-hidden
           className="bg-primary/14 pointer-events-none absolute -top-14 right-10 h-36 w-36 rounded-full blur-2xl"
@@ -175,53 +176,69 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
           aria-hidden
           className="bg-accent/14 pointer-events-none absolute -bottom-14 left-10 h-32 w-32 rounded-full blur-2xl"
         />
-        <p className="text-primary-strong text-sm font-semibold tracking-wide uppercase">
+        <p className="ui-kicker">
           Integraciones
         </p>
-        <h1 className="text-foreground mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+        <h1 className="ui-title-xl mt-2">
           Google Calendar, ICS y Shortcuts
         </h1>
-        <p className="text-muted mt-2 text-sm">
+        <p className="ui-subtle mt-2 max-w-3xl">
           Conecta tu calendario de Google, comparte feed ICS privado para Apple Calendar y usa
           webhook para automatizaciones.
         </p>
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <span
+            className={`ui-chip font-semibold shadow-sm ${
+              status?.google.connected
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-slate-200 text-slate-700"
+            }`}
+          >
+            Google: {status?.google.connected ? "Conectado" : "Desconectado"}
+          </span>
+          <span className="ui-chip bg-primary/10 text-primary-strong font-semibold shadow-sm">
+            Feed ICS privado
+          </span>
+          <span className="ui-chip bg-accent/10 text-slate-700 font-semibold shadow-sm">
+            Webhook + Export
+          </span>
+        </div>
       </header>
 
-      {googleStatusNotice ? (
-        <p className="bg-primary/10 text-primary-strong rounded-xl px-4 py-3 text-sm font-medium">
-          {googleStatusNotice}
-        </p>
-      ) : null}
+      {googleStatusNotice ? <p className="ui-alert ui-alert--info">{googleStatusNotice}</p> : null}
+      {error ? <p className="ui-alert ui-alert--danger">{error}</p> : null}
+      {notice ? <p className="ui-alert ui-alert--success">{notice}</p> : null}
 
-      {error ? (
-        <p className="bg-danger/10 text-danger rounded-xl px-4 py-3 text-sm font-medium">{error}</p>
-      ) : null}
-      {notice ? (
-        <p className="bg-success/10 text-success rounded-xl px-4 py-3 text-sm font-medium">
-          {notice}
-        </p>
-      ) : null}
+      <section className="ui-card space-y-4 p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="ui-kicker ui-kicker--muted">OAuth</p>
+            <h2 className="ui-title-lg mt-1">Google Calendar</h2>
+          </div>
+          <span
+            className={`ui-chip ui-chip--meta ${
+              status?.google.connected
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-slate-200 text-slate-700"
+            }`}
+          >
+            {status?.google.connected ? "Conectado" : "No conectado"}
+          </span>
+        </div>
 
-      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5">
-        <h2 className="text-xl font-bold">Google Calendar (OAuth)</h2>
         {!status ? (
-          <p className="text-muted text-sm">Cargando estado...</p>
+          <div className="space-y-2">
+            <div className="ui-skeleton h-10 w-52" />
+            <div className="ui-skeleton h-10 w-full" />
+          </div>
         ) : (
           <>
-            <p className="text-sm">
-              Estado:{" "}
-              <span
-                className={
-                  status.google.connected
-                    ? "text-success font-semibold"
-                    : "text-danger font-semibold"
-                }
-              >
-                {status.google.connected ? "Conectado" : "No conectado"}
-              </span>
-            </p>
+            <p className="text-muted text-sm">Sincroniza tareas y fechas con tu agenda principal.</p>
             {status.google.externalAccountEmail ? (
-              <p className="text-muted text-sm">Cuenta: {status.google.externalAccountEmail}</p>
+              <p className="text-sm">
+                Cuenta:{" "}
+                <span className="font-semibold text-slate-900">{status.google.externalAccountEmail}</span>
+              </p>
             ) : null}
             {status.google.calendarId ? (
               <p className="text-muted text-xs">Calendar ID: {status.google.calendarId}</p>
@@ -229,7 +246,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <a
                 href="/api/integrations/google/connect"
-                className="bg-primary-strong hover:bg-primary inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition"
+                className="ui-btn ui-btn--primary"
               >
                 {status.google.connected ? "Reconectar Google" : "Conectar Google"}
               </a>
@@ -237,7 +254,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
                 type="button"
                 disabled={isBusy || !status.google.connected}
                 onClick={() => void handleGoogleSync()}
-                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+                className="ui-btn ui-btn--secondary"
               >
                 Sync manual
               </button>
@@ -245,7 +262,7 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
                 type="button"
                 disabled={isBusy || !status.google.connected}
                 onClick={() => void handleGoogleDisconnect()}
-                className="border-danger/30 text-danger hover:bg-danger/10 inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+                className="ui-btn ui-btn--destructive"
               >
                 Desconectar
               </button>
@@ -254,101 +271,118 @@ export function IntegrationsPanel({ initialGoogleStatus }: IntegrationsPanelProp
         )}
       </section>
 
-      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5">
-        <h2 className="text-xl font-bold">Apple Calendar (ICS privado)</h2>
-        {!status ? (
-          <p className="text-muted text-sm">Cargando...</p>
-        ) : (
-          <>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium">URL del feed ICS</span>
-              <input
-                readOnly
-                value={status.ics.feedUrl}
-                className="border-border/80 w-full rounded-xl border bg-white/95 px-3 py-2 font-mono text-xs"
-              />
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <button
-                type="button"
-                onClick={() => void copyToClipboard(status.ics.feedUrl, "Feed ICS")}
-                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition"
-              >
-                Copiar URL
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleRotateIcs()}
-                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
-              >
-                Rotar token ICS
-              </button>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <section className="ui-card space-y-4 p-4 sm:p-5">
+          <div>
+            <p className="ui-kicker ui-kicker--muted">Apple Calendar</p>
+            <h2 className="ui-title-lg mt-1">Feed ICS privado</h2>
+          </div>
+          {!status ? (
+            <div className="space-y-2">
+              <div className="ui-skeleton h-10 w-full" />
+              <div className="ui-skeleton h-10 w-36" />
             </div>
-          </>
-        )}
-      </section>
+          ) : (
+            <>
+              <label className="block space-y-1">
+                <span className="text-sm font-medium">URL del feed ICS</span>
+                <Input
+                  readOnly
+                  value={status.ics.feedUrl}
+                  className="ui-field w-full font-mono text-xs sm:text-sm"
+                />
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => void copyToClipboard(status.ics.feedUrl, "Feed ICS")}
+                  className="ui-btn ui-btn--secondary"
+                >
+                  Copiar URL
+                </button>
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => void handleRotateIcs()}
+                  className="ui-btn ui-btn--secondary"
+                >
+                  Rotar token ICS
+                </button>
+              </div>
+            </>
+          )}
+        </section>
 
-      <section className="border-border/80 bg-surface/90 space-y-4 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5">
-        <h2 className="text-xl font-bold">Webhook para Shortcuts</h2>
-        {!status ? (
-          <p className="text-muted text-sm">Cargando...</p>
-        ) : (
-          <>
-            <label className="block space-y-1">
-              <span className="text-sm font-medium">Endpoint de ingesta</span>
-              <input
-                readOnly
-                value={status.webhook.ingestUrl}
-                className="border-border/80 w-full rounded-xl border bg-white/95 px-3 py-2 font-mono text-xs"
-              />
-            </label>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <button
-                type="button"
-                onClick={() => void copyToClipboard(status.webhook.ingestUrl, "Webhook URL")}
-                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition"
-              >
-                Copiar endpoint
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
-                onClick={() => void handleRotateWebhook()}
-                className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
-              >
-                Rotar token webhook
-              </button>
+        <section className="ui-card space-y-4 p-4 sm:p-5">
+          <div>
+            <p className="ui-kicker ui-kicker--muted">Automatización</p>
+            <h2 className="ui-title-lg mt-1">Webhook para Shortcuts</h2>
+          </div>
+          {!status ? (
+            <div className="space-y-2">
+              <div className="ui-skeleton h-10 w-full" />
+              <div className="ui-skeleton h-20 w-full" />
             </div>
-            <pre className="border-border overflow-auto rounded-xl border bg-slate-900 p-3 text-[11px] text-slate-100 sm:text-xs">
-              {`POST ${status.webhook.ingestUrl}
+          ) : (
+            <>
+              <label className="block space-y-1">
+                <span className="text-sm font-medium">Endpoint de ingesta</span>
+                <Input
+                  readOnly
+                  value={status.webhook.ingestUrl}
+                  className="ui-field w-full font-mono text-xs sm:text-sm"
+                />
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => void copyToClipboard(status.webhook.ingestUrl, "Webhook URL")}
+                  className="ui-btn ui-btn--secondary"
+                >
+                  Copiar endpoint
+                </button>
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => void handleRotateWebhook()}
+                  className="ui-btn ui-btn--secondary"
+                >
+                  Rotar token webhook
+                </button>
+              </div>
+              <pre className="border-border overflow-auto rounded-xl border bg-slate-900 p-3 text-[11px] text-slate-100 sm:text-xs">
+                {`POST ${status.webhook.ingestUrl}
 {
   "title": "Comprar pan",
   "dueDate": "2026-03-01T18:00:00.000Z",
   "priority": "MEDIUM",
   "listName": "Inbox"
 }`}
-            </pre>
-          </>
-        )}
-      </section>
+              </pre>
+            </>
+          )}
+        </section>
+      </div>
 
-      <section className="border-border/80 bg-surface/90 space-y-3 rounded-2xl border p-4 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.75)] sm:p-5">
-        <h2 className="text-xl font-bold">Exportaciones</h2>
+      <section className="ui-card space-y-4 p-4 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="ui-kicker ui-kicker--muted">Backups</p>
+            <h2 className="ui-title-lg mt-1">Exportaciones</h2>
+          </div>
+          <span className="ui-chip ui-chip--meta">JSON + CSV</span>
+        </div>
         {!status ? (
-          <p className="text-muted text-sm">Cargando...</p>
+          <div className="space-y-2">
+            <div className="ui-skeleton h-10 w-40" />
+            <div className="ui-skeleton h-10 w-40" />
+          </div>
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <a
-              href={status.export.jsonUrl}
-              className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition"
-            >
+            <a href={status.export.jsonUrl} className="ui-btn ui-btn--secondary">
               Descargar JSON
             </a>
-            <a
-              href={status.export.csvUrl}
-              className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition"
-            >
+            <a href={status.export.csvUrl} className="ui-btn ui-btn--secondary">
               Descargar CSV
             </a>
           </div>
