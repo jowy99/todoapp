@@ -55,6 +55,10 @@ Abre `http://localhost:3000`.
 - `pnpm prisma:studio`
 - `pnpm prisma:seed`
 
+## Guía UI/UX
+
+- Tokens, motion y reglas responsive: `docs/ui.md`
+
 ## Integraciones
 
 ### Google Calendar (OAuth + API)

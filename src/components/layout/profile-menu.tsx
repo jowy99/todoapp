@@ -40,6 +40,20 @@ function UserIcon() {
   );
 }
 
+function LogoutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="M9 4H5.8A1.8 1.8 0 0 0 4 5.8v12.4A1.8 1.8 0 0 0 5.8 20H9M14 16l4-4m0 0-4-4m4 4H9"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
@@ -101,7 +115,7 @@ export function ProfileMenu({ userLabel, navItems }: ProfileMenuProps) {
         aria-label="Abrir menú de perfil"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="app-profile-trigger border-border/80 bg-surface text-foreground hover:bg-surface-strong inline-flex h-10 max-w-[38vw] items-center justify-center gap-2 rounded-full border px-2.5 text-sm font-semibold transition sm:h-10 sm:max-w-[220px] sm:px-3.5"
+        className="app-profile-trigger border-border/80 bg-surface text-foreground inline-flex h-10 max-w-[38vw] items-center justify-center gap-2 rounded-full border px-2.5 text-sm font-semibold shadow-[0_10px_20px_-18px_rgb(15_23_42/0.9)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:bg-surface-strong hover:shadow-[0_14px_24px_-18px_rgb(15_23_42/0.85)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:translate-y-0 active:scale-[0.99] sm:h-10 sm:max-w-[220px] sm:px-3.5"
       >
         <span className="truncate text-slate-700">{buttonLabel}</span>
         <span className="text-slate-500">
@@ -109,7 +123,7 @@ export function ProfileMenu({ userLabel, navItems }: ProfileMenuProps) {
         </span>
       </button>
       {isOpen ? (
-        <div className="border-border/90 bg-surface absolute right-0 z-[100] mt-2 max-h-[75vh] w-64 overflow-y-auto rounded-2xl border p-2 shadow-[0_18px_28px_-20px_rgb(15_23_42/0.85)]">
+        <div className="ui-menu-pop border-border/90 bg-surface absolute right-0 z-[100] mt-2 max-h-[75vh] w-64 overflow-y-auto rounded-2xl border p-2 shadow-[0_24px_36px_-28px_rgb(15_23_42/0.9)]">
           <p className="text-muted truncate px-2 py-1 text-xs font-semibold">{userLabel}</p>
           <div className="app-mobile-nav-group md:hidden">
             <p className="mt-1 px-2 text-[10px] font-semibold tracking-[0.14em] text-slate-400 uppercase">
@@ -124,10 +138,10 @@ export function ProfileMenu({ userLabel, navItems }: ProfileMenuProps) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsOpen(false)}
-                    className={`block rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                    className={`block min-h-11 rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 ${
                       isActive
-                        ? "bg-slate-100 text-slate-900"
-                        : "text-slate-700 hover:bg-slate-100/80"
+                        ? "bg-slate-100 text-slate-900 shadow-[0_8px_14px_-12px_rgb(15_23_42/0.65)]"
+                        : "text-slate-700 hover:-translate-y-[1px] hover:bg-slate-100/80 hover:text-slate-900"
                     }`}
                   >
                     {item.label}
@@ -140,7 +154,7 @@ export function ProfileMenu({ userLabel, navItems }: ProfileMenuProps) {
           <Link
             href="/profile"
             onClick={() => setIsOpen(false)}
-            className="hover:bg-surface-strong mt-1 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition"
+            className="hover:bg-surface-strong mt-1 flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
           >
             <UserIcon />
             Perfil
@@ -149,8 +163,9 @@ export function ProfileMenu({ userLabel, navItems }: ProfileMenuProps) {
             type="button"
             onClick={() => void handleLogout()}
             disabled={isLoggingOut}
-            className="hover:bg-surface-strong mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition disabled:opacity-60"
+            className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-rose-600 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 disabled:opacity-60"
           >
+            <LogoutIcon />
             {isLoggingOut ? "Saliendo..." : "Cerrar sesión"}
           </button>
         </div>

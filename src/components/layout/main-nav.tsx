@@ -25,7 +25,7 @@ export function MainNav({ items }: MainNavProps) {
 
   return (
     <nav aria-label="Principal" className="min-w-0">
-      <ul className="border-border/80 bg-surface-strong/86 flex items-center justify-between gap-1 rounded-xl border p-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.75)]">
+      <ul className="ui-nav-shell flex items-center justify-between gap-1 p-1">
         {items.map((item) => {
           const isActive = isActivePath(pathname, item.href);
 
@@ -33,11 +33,9 @@ export function MainNav({ items }: MainNavProps) {
             <li key={item.href} className="min-w-0 flex-1">
               <Link
                 href={item.href}
-                className={`inline-flex min-h-8 w-full items-center justify-center rounded-lg px-1.5 py-1.5 text-[12px] leading-tight font-semibold transition md:text-[13px] lg:text-sm ${
-                  isActive
-                    ? "bg-surface text-foreground shadow-[0_10px_18px_-14px_rgb(15_23_42/0.62)]"
-                    : "text-muted hover:bg-surface/75 hover:text-foreground"
-                }`}
+                aria-current={isActive ? "page" : undefined}
+                data-active={isActive ? "true" : "false"}
+                className="ui-nav-link text-center text-[12px] md:text-[13px] lg:text-sm"
               >
                 {item.label}
               </Link>

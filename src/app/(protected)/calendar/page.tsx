@@ -44,18 +44,18 @@ function toMonthParam(date: Date) {
 
 function priorityTone(priority: TaskPriority) {
   if (priority === TaskPriority.URGENT) {
-    return "border-danger/40 bg-danger/12";
+    return "border-rose-200 bg-rose-50 text-rose-900";
   }
 
   if (priority === TaskPriority.HIGH) {
-    return "border-accent/35 bg-accent/10";
+    return "border-amber-200 bg-amber-50 text-amber-900";
   }
 
   if (priority === TaskPriority.MEDIUM) {
-    return "border-primary/30 bg-primary/10";
+    return "border-cyan-200 bg-cyan-50 text-cyan-900";
   }
 
-  return "border-border bg-surface";
+  return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
@@ -145,7 +145,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   return (
     <section className="space-y-4 sm:space-y-6">
-      <header className="border-border/80 bg-surface/90 relative overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_20px_50px_-34px_rgb(15_23_42/0.85)] backdrop-blur sm:rounded-[1.75rem] sm:p-6">
+      <header className="ui-card ui-card--hero relative p-4 sm:p-6">
         <div
           aria-hidden
           className="bg-primary/14 pointer-events-none absolute -top-16 right-10 h-36 w-36 rounded-full blur-2xl"
@@ -154,31 +154,27 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           aria-hidden
           className="bg-accent/15 pointer-events-none absolute -bottom-12 left-12 h-28 w-28 rounded-full blur-2xl"
         />
-        <p className="text-primary-strong text-sm font-semibold tracking-wide uppercase">
-          Calendario
-        </p>
-        <h1 className="text-foreground mt-2 text-2xl font-black tracking-tight sm:text-3xl">
-          {monthFormatter.format(currentMonthDate)}
-        </h1>
-        <p className="text-muted mt-2 text-sm">
+        <p className="ui-kicker">Calendario</p>
+        <h1 className="ui-title-xl mt-2">{monthFormatter.format(currentMonthDate)}</h1>
+        <p className="ui-subtle mt-2">
           Vista mensual de tareas con fecha límite. Los bloques se colorean por prioridad.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Link
             href={`/calendar?month=${toMonthParam(prevMonth)}`}
-            className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center rounded-xl border px-3 py-2 text-sm font-semibold transition"
+            className="ui-btn ui-btn--secondary ui-btn--compact"
           >
             Mes anterior
           </Link>
           <Link
             href={`/calendar?month=${toMonthParam(new Date())}`}
-            className="bg-primary-strong hover:bg-primary inline-flex min-h-11 items-center rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition"
+            className="ui-btn ui-btn--primary ui-btn--compact"
           >
             Hoy
           </Link>
           <Link
             href={`/calendar?month=${toMonthParam(nextMonth)}`}
-            className="border-border/80 hover:bg-surface-strong inline-flex min-h-11 items-center rounded-xl border px-3 py-2 text-sm font-semibold transition"
+            className="ui-btn ui-btn--secondary ui-btn--compact"
           >
             Mes siguiente
           </Link>
@@ -187,28 +183,25 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
       <section className="space-y-3 md:hidden">
         {mobileGroups.length === 0 ? (
-          <p className="border-border/80 bg-surface/70 text-muted rounded-xl border px-4 py-3 text-sm">
-            No hay tareas con fecha para este mes.
-          </p>
+          <p className="ui-empty">No hay tareas con fecha para este mes.</p>
         ) : (
           mobileGroups.map(([day, dayTasks]) => (
-            <article
-              key={day}
-              className="border-border/80 bg-surface/90 rounded-xl border p-3 shadow-[0_12px_28px_-24px_rgb(15_23_42/0.78)]"
-            >
-              <p className="text-sm font-bold">
+            <article key={day} className="ui-card space-y-2 rounded-2xl p-3">
+              <p className="ui-title-lg !text-base">
                 {day} · {monthFormatter.format(currentMonthDate)}
               </p>
               <div className="mt-2 space-y-1.5">
                 {dayTasks.map((task) => (
                   <div
                     key={task.id}
-                    className={`rounded-lg border px-2.5 py-2 text-xs ${priorityTone(task.priority)} ${
+                    className={`rounded-xl border px-2.5 py-2 text-xs font-semibold transition-all duration-200 ease-out ${priorityTone(task.priority)} ${
                       task.isCompleted ? "line-through opacity-60" : ""
                     }`}
                   >
-                    <p className="truncate font-semibold">{task.title}</p>
-                    <p className="mt-0.5 text-[11px]">{timeFormatter.format(task.dueDate)}</p>
+                    <p className="truncate">{task.title}</p>
+                    <p className="mt-0.5 text-[11px] font-medium opacity-80">
+                      {timeFormatter.format(task.dueDate)}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -217,10 +210,10 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         )}
       </section>
 
-      <div className="border-border/80 bg-surface/85 hidden overflow-x-auto rounded-2xl border p-3 shadow-[0_20px_40px_-30px_rgb(15_23_42/0.75)] md:block">
-        <div className="grid min-w-[760px] grid-cols-7 gap-2 lg:min-w-0">
+      <div className="ui-card hidden overflow-x-auto rounded-2xl p-3 md:block">
+        <div className="grid min-w-[680px] grid-cols-7 gap-2 lg:min-w-0">
           {weekDays.map((day) => (
-            <p key={day} className="text-muted px-2 py-1 text-xs font-bold tracking-wide uppercase">
+            <p key={day} className="px-2 py-1 text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">
               {day}
             </p>
           ))}
@@ -233,33 +226,37 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             return (
               <article
                 key={index}
-                className={`min-h-32 rounded-xl border p-2 lg:min-h-36 ${
+                className={`min-h-32 rounded-xl border p-2 transition-all duration-200 ease-out lg:min-h-36 ${
                   isVisibleMonth
-                    ? "border-border/80 bg-surface/95 shadow-[0_10px_24px_-22px_rgb(15_23_42/0.9)]"
+                    ? "border-slate-200/80 bg-white/95 shadow-[0_10px_24px_-22px_rgb(15_23_42/0.9)] hover:-translate-y-[1px] hover:shadow-[0_14px_26px_-20px_rgb(15_23_42/0.85)]"
                     : "border-transparent bg-transparent"
                 }`}
               >
                 {isVisibleMonth ? (
                   <>
-                    <p className="text-sm font-semibold">{dayNumber}</p>
+                    <p className="text-sm font-bold text-slate-800">{dayNumber}</p>
                     <div className="mt-2 space-y-1">
                       {dayTasks.length === 0 ? (
-                        <p className="text-muted text-xs">Sin tareas</p>
+                        <p className="text-xs font-medium text-slate-400">Sin tareas</p>
                       ) : (
                         dayTasks.slice(0, 4).map((task) => (
                           <div
                             key={task.id}
-                            className={`rounded-lg border px-2 py-1 text-xs ${priorityTone(task.priority)} ${
+                            className={`rounded-lg border px-2 py-1 text-xs font-semibold transition-all duration-200 ease-out ${priorityTone(task.priority)} ${
                               task.isCompleted ? "line-through opacity-60" : ""
                             }`}
                           >
-                            <p className="truncate font-semibold">{task.title}</p>
-                            <p className="text-[10px]">{timeFormatter.format(task.dueDate)}</p>
+                            <p className="truncate">{task.title}</p>
+                            <p className="text-[10px] font-medium opacity-80">
+                              {timeFormatter.format(task.dueDate)}
+                            </p>
                           </div>
                         ))
                       )}
                       {dayTasks.length > 4 ? (
-                        <p className="text-muted text-[11px]">+{dayTasks.length - 4} más</p>
+                        <p className="text-[11px] font-semibold text-slate-500">
+                          +{dayTasks.length - 4} más
+                        </p>
                       ) : null}
                     </div>
                   </>
