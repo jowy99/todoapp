@@ -3,7 +3,7 @@ import type { AppLocale } from "@/lib/preferences/locale";
 export type MessageValues = Record<string, string | number | boolean | null | undefined>;
 
 const en = {
-  "app.title": "Todo Studio",
+  "app.title": "PlannR",
   "app.description": "Local-first task management with collaborative workspace.",
   "app.saved": "Saved",
 
@@ -36,6 +36,7 @@ const en = {
   "profile.collaboration": "Collaboration",
   "profile.lists": "Lists",
   "profile.settings": "Settings",
+  "profile.legal": "Legal",
   "profile.signOut": "Sign out",
   "profile.signingOut": "Signing out...",
 
@@ -413,6 +414,238 @@ const en = {
 
   "toast.dismiss": "Dismiss notification",
 
+  "footer.privacy": "Privacy",
+  "footer.cookies": "Cookies",
+  "footer.terms": "Terms",
+  "footer.legalNotice": "Legal notice",
+  "footer.legalCenter": "Legal center",
+  "footer.contact": "Contact",
+  "footer.rights": "All rights reserved.",
+  "footer.linksAria": "Legal links",
+
+  "legal.kicker": "Legal",
+  "legal.updated": "Last updated",
+  "legal.locationDate": "Balearic Islands, Spain, February 26, 2026",
+  "legal.openDocument": "Open document",
+  "legal.backToCenter": "Back to legal center",
+  "legal.disclaimer.title": "Template disclaimer",
+  "legal.disclaimer.body":
+    "This legal text is a compliance template and must be reviewed by qualified legal counsel before production use.",
+
+  "legal.center.metaTitle": "Legal center",
+  "legal.center.metaDescription":
+    "Access Privacy Policy, Cookies Policy, Terms and Conditions, and Legal Notice for PlannR.",
+  "legal.center.title": "Legal center",
+  "legal.center.subtitle":
+    "This section groups legal templates adapted to Spain (Balearic Islands) and dated February 26, 2026.",
+  "legal.center.privacy.title": "Privacy policy",
+  "legal.center.privacy.description":
+    "How personal data is processed under GDPR, LOPDGDD, and related regulations.",
+  "legal.center.cookies.title": "Cookies policy",
+  "legal.center.cookies.description":
+    "Information about cookie categories, purposes, retention periods, and browser controls.",
+  "legal.center.terms.title": "Terms and conditions",
+  "legal.center.terms.description":
+    "Rules for account use, platform responsibilities, and limitations of liability.",
+  "legal.center.legalNotice.title": "Legal notice",
+  "legal.center.legalNotice.description":
+    "Provider identification details and mandatory LSSI-CE information.",
+
+  "legal.todo.title": "HUMAN REVIEW REQUIRED",
+  "legal.todo.description":
+    "Complete the following placeholders and validate this content with legal counsel before publishing.",
+  "legal.todo.companyName": "Company / controller legal name: [COMPANY_NAME]",
+  "legal.todo.taxId": "Tax ID (NIF/CIF): [TAX_ID]",
+  "legal.todo.address": "Full address in Balearic Islands: [FULL_ADDRESS]",
+  "legal.todo.email": "Legal contact email: [LEGAL_EMAIL]",
+  "legal.todo.dpo": "Data Protection Officer details (if applicable): [DPO_CONTACT]",
+  "legal.todo.providers": "Third-party providers and countries (hosting, analytics, email): [PROVIDERS_LIST]",
+  "legal.todo.cookies": "Real cookie inventory (name, provider, duration, purpose): [COOKIE_TABLE]",
+  "legal.todo.review": "Final legal validation date and reviewer: [LEGAL_REVIEW_LOG]",
+
+  "legal.privacy.metaTitle": "Privacy policy",
+  "legal.privacy.metaDescription":
+    "Privacy policy template for Spain (GDPR, LOPDGDD) with placeholders to complete before production.",
+  "legal.privacy.title": "Privacy policy",
+  "legal.privacy.intro":
+    "This policy explains how personal data is processed when using PlannR. It follows the GDPR, the Spanish Organic Law 3/2018 (LOPDGDD), and related ePrivacy and LSSI-CE obligations.",
+  "legal.privacy.section.controller.title": "1. Data controller",
+  "legal.privacy.section.controller.body":
+    "The data controller is the legal person responsible for deciding why and how personal data is processed in PlannR.",
+  "legal.privacy.section.controller.item1": "Legal name: [COMPANY_NAME]",
+  "legal.privacy.section.controller.item2": "Tax ID (NIF/CIF): [TAX_ID]",
+  "legal.privacy.section.controller.item3": "Registered address: [FULL_ADDRESS], Balearic Islands, Spain",
+  "legal.privacy.section.controller.item4": "Contact email: [LEGAL_EMAIL]",
+  "legal.privacy.section.data.title": "2. Data categories",
+  "legal.privacy.section.data.body":
+    "We process only data required to provide and secure the service, and to comply with legal duties.",
+  "legal.privacy.section.data.item1": "Identification data: display name, username, email address.",
+  "legal.privacy.section.data.item2": "Account and usage data: tasks, lists, tags, settings, collaboration metadata.",
+  "legal.privacy.section.data.item3": "Technical and security logs: IP, device/browser metadata, session activity.",
+  "legal.privacy.section.purposes.title": "3. Processing purposes",
+  "legal.privacy.section.purposes.body":
+    "Data is processed for clearly defined purposes and not reused incompatibly.",
+  "legal.privacy.section.purposes.item1": "User account creation, authentication, and profile management.",
+  "legal.privacy.section.purposes.item2": "Task management features, collaboration workflows, and support.",
+  "legal.privacy.section.purposes.item3": "Security, fraud prevention, incident response, and abuse control.",
+  "legal.privacy.section.purposes.item4": "Compliance with tax, accounting, and legal obligations when applicable.",
+  "legal.privacy.section.legalBasis.title": "4. Legal basis",
+  "legal.privacy.section.legalBasis.body":
+    "Each processing activity is linked to at least one lawful basis under GDPR Article 6.",
+  "legal.privacy.section.legalBasis.item1": "Performance of a contract (service delivery and account operation).",
+  "legal.privacy.section.legalBasis.item2": "Legitimate interests (service security and reliability).",
+  "legal.privacy.section.legalBasis.item3": "Consent for optional processing (non-essential cookies, if enabled).",
+  "legal.privacy.section.retention.title": "5. Retention period",
+  "legal.privacy.section.retention.body":
+    "Data is stored only for as long as needed for the service and legal retention duties. Once no longer required, data is blocked or securely deleted according to internal retention schedules.",
+  "legal.privacy.section.recipients.title": "6. Recipients and processors",
+  "legal.privacy.section.recipients.body":
+    "Data may be shared with service providers under data processing agreements and confidentiality obligations.",
+  "legal.privacy.section.recipients.item1": "Infrastructure providers (hosting, storage, monitoring).",
+  "legal.privacy.section.recipients.item2": "Communication and support providers strictly necessary for service operation.",
+  "legal.privacy.section.transfers.title": "7. International transfers",
+  "legal.privacy.section.transfers.body":
+    "If data is transferred outside the EEA, appropriate safeguards will apply (e.g., adequacy decisions or Standard Contractual Clauses) and will be documented in [PROVIDERS_LIST].",
+  "legal.privacy.section.rights.title": "8. Data subject rights (ARSULIPO)",
+  "legal.privacy.section.rights.body":
+    "You may exercise your rights of access, rectification, erasure, restriction, objection, and portability by contacting [LEGAL_EMAIL]. We may request proof of identity where legally required.",
+  "legal.privacy.section.rights.item1": "Expected response period: one month, extendable when legally justified.",
+  "legal.privacy.section.rights.item2": "Requests are free unless manifestly unfounded or excessive.",
+  "legal.privacy.section.rights.item3": "You may withdraw consent at any time for consent-based processing.",
+  "legal.privacy.section.aepd.title": "9. Right to lodge a complaint",
+  "legal.privacy.section.aepd.body":
+    "If you believe your data protection rights are not properly addressed, you may file a complaint with the Spanish Data Protection Authority (AEPD): https://www.aepd.es.",
+  "legal.privacy.section.security.title": "10. Security measures",
+  "legal.privacy.section.security.body":
+    "We apply organizational and technical safeguards proportional to risk, including least-privilege access control, encrypted transport, credential protection, and auditability mechanisms.",
+  "legal.privacy.section.minors.title": "11. Minors",
+  "legal.privacy.section.minors.body":
+    "The service is not designed for minors under the legally applicable age threshold. If data from minors is detected without valid authorization, it will be deleted as soon as possible.",
+  "legal.privacy.section.changes.title": "12. Policy updates",
+  "legal.privacy.section.changes.body":
+    "This policy may be updated to reflect legal, technical, or operational changes. The latest version date is shown above.",
+
+  "legal.cookies.metaTitle": "Cookies policy",
+  "legal.cookies.metaDescription":
+    "Cookies policy template for Spain with categories, legal basis, and cookie management instructions.",
+  "legal.cookies.title": "Cookies policy",
+  "legal.cookies.intro":
+    "This policy describes cookie usage on PlannR in accordance with GDPR, LSSI-CE, and guidance issued by the AEPD.",
+  "legal.cookies.section.definition.title": "1. What cookies are",
+  "legal.cookies.section.definition.body":
+    "Cookies are small files stored in your browser to remember preferences, enable features, and collect usage metrics.",
+  "legal.cookies.section.types.title": "2. Cookie categories",
+  "legal.cookies.section.types.body":
+    "Cookies may be first-party or third-party, and session or persistent depending on duration.",
+  "legal.cookies.section.types.item1": "Technical cookies: required for authentication and core platform operation.",
+  "legal.cookies.section.types.item2": "Preference cookies: remember UI settings such as language or theme.",
+  "legal.cookies.section.types.item3": "Analytics cookies: measure usage and performance (if enabled).",
+  "legal.cookies.section.types.item4": "Marketing cookies: profile users for advertising purposes (not enabled by default).",
+  "legal.cookies.section.inventory.title": "3. Cookie inventory",
+  "legal.cookies.section.inventory.body":
+    "The final inventory must be completed before production with real technical details and retention periods.",
+  "legal.cookies.section.inventory.item1": "Cookie name: [COOKIE_NAME]",
+  "legal.cookies.section.inventory.item2": "Provider: [COOKIE_PROVIDER] | Duration: [COOKIE_DURATION]",
+  "legal.cookies.section.inventory.item3": "Purpose and category: [COOKIE_PURPOSE_AND_CATEGORY]",
+  "legal.cookies.section.consent.title": "4. Consent and management",
+  "legal.cookies.section.consent.body":
+    "Only strictly necessary cookies are active by default. Non-essential cookies require prior consent where legally required, and users must be able to revoke consent at any time.",
+  "legal.cookies.section.disable.title": "5. Browser controls",
+  "legal.cookies.section.disable.body":
+    "You can delete or block cookies from your browser settings. Disabling technical cookies may affect service functionality.",
+  "legal.cookies.section.disable.item1": "Chrome: Settings > Privacy and security > Cookies and other site data.",
+  "legal.cookies.section.disable.item2": "Firefox: Settings > Privacy & Security > Cookies and Site Data.",
+  "legal.cookies.section.disable.item3": "Safari: Settings > Safari > Advanced > Website Data.",
+  "legal.cookies.section.disable.item4": "Edge: Settings > Cookies and site permissions.",
+  "legal.cookies.section.updates.title": "6. Policy updates",
+  "legal.cookies.section.updates.body":
+    "This policy may be updated due to legal requirements or changes in cookie usage. Check this section regularly.",
+
+  "legal.terms.metaTitle": "Terms and conditions",
+  "legal.terms.metaDescription":
+    "Terms and conditions template governing account usage, responsibilities, service availability, and jurisdiction.",
+  "legal.terms.title": "Terms and conditions",
+  "legal.terms.intro":
+    "These terms govern access to and use of PlannR. By creating an account or using the service, you accept these terms.",
+  "legal.terms.section.scope.title": "1. Purpose and scope",
+  "legal.terms.section.scope.body":
+    "These conditions regulate the legal relationship between the provider and users of the web application.",
+  "legal.terms.section.account.title": "2. Account and registration",
+  "legal.terms.section.account.body":
+    "Users must provide accurate information and keep credentials confidential.",
+  "legal.terms.section.account.item1": "You are responsible for all activity performed through your account.",
+  "legal.terms.section.account.item2": "You must promptly notify unauthorized use or security incidents.",
+  "legal.terms.section.account.item3": "Accounts may be suspended for fraudulent use or serious breach of these terms.",
+  "legal.terms.section.usage.title": "3. Acceptable use",
+  "legal.terms.section.usage.body":
+    "The service must be used lawfully and without harming rights or interests of the provider or third parties.",
+  "legal.terms.section.usage.item1": "No unauthorized access attempts, malware distribution, or service abuse.",
+  "legal.terms.section.usage.item2": "No content that is unlawful, defamatory, discriminatory, or rights-infringing.",
+  "legal.terms.section.usage.item3": "No reverse engineering, scraping, or automated extraction beyond lawful allowances.",
+  "legal.terms.section.ip.title": "4. Intellectual property",
+  "legal.terms.section.ip.body":
+    "Software, trademarks, designs, and non-user-generated content are owned or licensed by the provider and protected by intellectual property laws.",
+  "legal.terms.section.availability.title": "5. Service availability",
+  "legal.terms.section.availability.body":
+    "The provider will use reasonable efforts to maintain service continuity but does not guarantee uninterrupted availability due to maintenance, updates, or external incidents.",
+  "legal.terms.section.links.title": "6. External links",
+  "legal.terms.section.links.body":
+    "External links may be provided for convenience. The provider is not responsible for third-party content, policies, or availability.",
+  "legal.terms.section.liability.title": "7. Liability limitations",
+  "legal.terms.section.liability.body":
+    "To the maximum extent allowed by law, the provider is not liable for indirect or consequential damages, lost profits, or data loss arising from misuse or external causes beyond reasonable control.",
+  "legal.terms.section.termination.title": "8. Termination",
+  "legal.terms.section.termination.body":
+    "Users may stop using the service at any time. The provider may suspend or terminate access in case of legal obligation, security risk, or material breach of these terms.",
+  "legal.terms.section.law.title": "9. Applicable law and jurisdiction",
+  "legal.terms.section.law.body":
+    "These terms are governed by Spanish law. For disputes, parties submit to competent courts according to applicable consumer and procedural regulations, with Balearic Islands as reference domicile when legally possible.",
+
+  "legal.legalNotice.metaTitle": "Legal notice",
+  "legal.legalNotice.metaDescription":
+    "Legal notice template under Spanish LSSI-CE with provider identification and terms of website use.",
+  "legal.legalNotice.title": "Legal notice",
+  "legal.legalNotice.intro":
+    "This legal notice contains mandatory provider identification and website usage conditions under Law 34/2002 (LSSI-CE).",
+  "legal.legalNotice.section.identification.title": "1. Provider identification",
+  "legal.legalNotice.section.identification.body":
+    "In compliance with Article 10 LSSI-CE, the following identification details must be completed before publication:",
+  "legal.legalNotice.section.identification.item1": "Legal name / holder: [COMPANY_NAME]",
+  "legal.legalNotice.section.identification.item2": "Tax ID (NIF/CIF): [TAX_ID]",
+  "legal.legalNotice.section.identification.item3": "Registered office: [FULL_ADDRESS], Balearic Islands, Spain",
+  "legal.legalNotice.section.identification.item4": "Contact email: [LEGAL_EMAIL]",
+  "legal.legalNotice.section.useConditions.title": "2. Website use conditions",
+  "legal.legalNotice.section.useConditions.body":
+    "Access to this website implies acceptance of these terms. Users must use the website lawfully and refrain from actions that may damage systems, rights, or legitimate interests.",
+  "legal.legalNotice.section.ip.title": "3. Intellectual and industrial property",
+  "legal.legalNotice.section.ip.body":
+    "All website elements (source code, interface, content, logos, and trademarks) are protected by intellectual and industrial property rights. Reproduction, distribution, or transformation requires prior authorization unless legally allowed.",
+  "legal.legalNotice.section.liability.title": "4. Liability regime",
+  "legal.legalNotice.section.liability.body":
+    "The provider is not responsible for errors caused by force majeure, maintenance interruptions, or third-party misuse. The provider may update, suspend, or remove content without prior notice when necessary.",
+  "legal.legalNotice.section.commercial.title": "5. Commercial communications",
+  "legal.legalNotice.section.commercial.body":
+    "Commercial communications by electronic means will only be sent where legally permitted and, when required, based on prior consent with an easy opt-out mechanism.",
+  "legal.legalNotice.section.jurisdiction.title": "6. Applicable law and jurisdiction",
+  "legal.legalNotice.section.jurisdiction.body":
+    "This website is governed by Spanish law. Any dispute shall be submitted to competent courts according to applicable regulations, with Balearic Islands as reference venue when legally admissible.",
+  "legal.legalNotice.section.contact.title": "7. Contact and legal requests",
+  "legal.legalNotice.section.contact.body":
+    "For legal notices, rights requests, or compliance matters, use the official contact channels listed below.",
+  "legal.legalNotice.section.contact.item1": "General legal contact: [LEGAL_EMAIL]",
+  "legal.legalNotice.section.contact.item2": "Data protection requests: [DPO_CONTACT]",
+  "legal.legalNotice.todo.title": "HUMAN: complete before production",
+  "legal.legalNotice.todo.description":
+    "These legal fields are mandatory and must be completed with real company data before publishing.",
+  "legal.legalNotice.todo.item1": "Confirm legal name and tax identifier (NIF/CIF).",
+  "legal.legalNotice.todo.item2": "Provide full postal address in Balearic Islands.",
+  "legal.legalNotice.todo.item3": "Set legal contact email and response SLA.",
+  "legal.legalNotice.todo.item4": "Define DPO contact details if legally required.",
+  "legal.legalNotice.todo.item5": "List providers and international transfers with safeguards.",
+  "legal.legalNotice.todo.item6": "Publish real cookie inventory if analytics/marketing are enabled.",
+  "legal.legalNotice.todo.item7": "Validate retention periods and rights handling procedures.",
+  "legal.legalNotice.todo.item8": "Final legal approval sign-off by counsel.",
+
   "notFound.title": "Page not found",
   "notFound.description": "The page you are looking for does not exist or is no longer available.",
   "notFound.goTasks": "Go to tasks",
@@ -424,7 +657,7 @@ export type MessageKey = keyof typeof en;
 type MessageTable = Record<MessageKey, string>;
 
 const es: MessageTable = {
-  "app.title": "Todo Studio",
+  "app.title": "PlannR",
   "app.description": "Gestión de tareas local-first con espacio colaborativo.",
   "app.saved": "Guardado",
 
@@ -457,6 +690,7 @@ const es: MessageTable = {
   "profile.collaboration": "Colaboración",
   "profile.lists": "Listas",
   "profile.settings": "Ajustes",
+  "profile.legal": "Legal",
   "profile.signOut": "Cerrar sesión",
   "profile.signingOut": "Cerrando sesión...",
 
@@ -832,6 +1066,275 @@ const es: MessageTable = {
   "auth.register.confirmPassword": "Confirmar contraseña",
 
   "toast.dismiss": "Cerrar notificación",
+
+  "footer.privacy": "Privacidad",
+  "footer.cookies": "Cookies",
+  "footer.terms": "Términos",
+  "footer.legalNotice": "Aviso legal",
+  "footer.legalCenter": "Centro legal",
+  "footer.contact": "Contacto",
+  "footer.rights": "Todos los derechos reservados.",
+  "footer.linksAria": "Enlaces legales",
+
+  "legal.kicker": "Legal",
+  "legal.updated": "Última actualización",
+  "legal.locationDate": "Islas Baleares, España, 26 de febrero de 2026",
+  "legal.openDocument": "Abrir documento",
+  "legal.backToCenter": "Volver al centro legal",
+  "legal.disclaimer.title": "Aviso de plantilla",
+  "legal.disclaimer.body":
+    "Este texto legal es una plantilla de cumplimiento y debe ser revisado por asesoría jurídica cualificada antes de usarse en producción.",
+
+  "legal.center.metaTitle": "Centro legal",
+  "legal.center.metaDescription":
+    "Accede a Política de privacidad, Política de cookies, Términos y condiciones y Aviso legal de PlannR.",
+  "legal.center.title": "Centro legal",
+  "legal.center.subtitle":
+    "Este apartado reúne plantillas legales adaptadas a España (Islas Baleares) con fecha 26 de febrero de 2026.",
+  "legal.center.privacy.title": "Política de privacidad",
+  "legal.center.privacy.description":
+    "Cómo se tratan los datos personales conforme al RGPD, la LOPDGDD y normativa relacionada.",
+  "legal.center.cookies.title": "Política de cookies",
+  "legal.center.cookies.description":
+    "Información sobre categorías de cookies, finalidades, plazos de conservación y controles del navegador.",
+  "legal.center.terms.title": "Términos y condiciones",
+  "legal.center.terms.description":
+    "Normas de uso de cuenta, responsabilidades de la plataforma y límites de responsabilidad.",
+  "legal.center.legalNotice.title": "Aviso legal",
+  "legal.center.legalNotice.description":
+    "Datos identificativos del prestador e información obligatoria según la LSSI-CE.",
+
+  "legal.todo.title": "REVISIÓN HUMANA OBLIGATORIA",
+  "legal.todo.description":
+    "Completa los siguientes placeholders y valida este contenido con asesoría legal antes de publicarlo.",
+  "legal.todo.companyName": "Razón social / responsable del tratamiento: [COMPANY_NAME]",
+  "legal.todo.taxId": "NIF/CIF: [TAX_ID]",
+  "legal.todo.address": "Dirección completa en Islas Baleares: [FULL_ADDRESS]",
+  "legal.todo.email": "Email legal de contacto: [LEGAL_EMAIL]",
+  "legal.todo.dpo": "Datos del Delegado de Protección de Datos (si aplica): [DPO_CONTACT]",
+  "legal.todo.providers":
+    "Proveedores externos y países (hosting, analytics, email): [PROVIDERS_LIST]",
+  "legal.todo.cookies":
+    "Inventario real de cookies (nombre, proveedor, duración, finalidad): [COOKIE_TABLE]",
+  "legal.todo.review": "Fecha de validación legal final y responsable: [LEGAL_REVIEW_LOG]",
+
+  "legal.privacy.metaTitle": "Política de privacidad",
+  "legal.privacy.metaDescription":
+    "Plantilla de política de privacidad para España (RGPD, LOPDGDD) con campos a completar antes de producción.",
+  "legal.privacy.title": "Política de privacidad",
+  "legal.privacy.intro":
+    "Esta política explica cómo se tratan los datos personales al usar PlannR. Se adapta al RGPD, a la Ley Orgánica 3/2018 (LOPDGDD) y a las obligaciones relacionadas de ePrivacy y LSSI-CE.",
+  "legal.privacy.section.controller.title": "1. Responsable del tratamiento",
+  "legal.privacy.section.controller.body":
+    "El responsable del tratamiento es la persona física o jurídica que decide los fines y medios del tratamiento de datos en PlannR.",
+  "legal.privacy.section.controller.item1": "Razón social: [COMPANY_NAME]",
+  "legal.privacy.section.controller.item2": "NIF/CIF: [TAX_ID]",
+  "legal.privacy.section.controller.item3":
+    "Domicilio social: [FULL_ADDRESS], Islas Baleares, España",
+  "legal.privacy.section.controller.item4": "Email de contacto: [LEGAL_EMAIL]",
+  "legal.privacy.section.data.title": "2. Categorías de datos",
+  "legal.privacy.section.data.body":
+    "Tratamos únicamente los datos necesarios para prestar y proteger el servicio, y cumplir obligaciones legales.",
+  "legal.privacy.section.data.item1": "Datos identificativos: nombre visible, usuario y correo electrónico.",
+  "legal.privacy.section.data.item2":
+    "Datos de cuenta y uso: tareas, listas, etiquetas, ajustes y metadatos de colaboración.",
+  "legal.privacy.section.data.item3":
+    "Registros técnicos y de seguridad: IP, metadatos de dispositivo/navegador y actividad de sesión.",
+  "legal.privacy.section.purposes.title": "3. Finalidades del tratamiento",
+  "legal.privacy.section.purposes.body":
+    "Los datos se tratan para finalidades determinadas y no se reutilizan de forma incompatible.",
+  "legal.privacy.section.purposes.item1":
+    "Alta y gestión de cuenta, autenticación y administración del perfil.",
+  "legal.privacy.section.purposes.item2":
+    "Funcionalidades de gestión de tareas, colaboración y soporte.",
+  "legal.privacy.section.purposes.item3":
+    "Seguridad, prevención de fraude, respuesta a incidentes y control de abusos.",
+  "legal.privacy.section.purposes.item4":
+    "Cumplimiento de obligaciones fiscales, contables y legales cuando proceda.",
+  "legal.privacy.section.legalBasis.title": "4. Base jurídica",
+  "legal.privacy.section.legalBasis.body":
+    "Cada tratamiento se apoya en al menos una base de legitimación del artículo 6 del RGPD.",
+  "legal.privacy.section.legalBasis.item1":
+    "Ejecución de contrato (prestación del servicio y funcionamiento de la cuenta).",
+  "legal.privacy.section.legalBasis.item2":
+    "Interés legítimo (seguridad y fiabilidad del servicio).",
+  "legal.privacy.section.legalBasis.item3":
+    "Consentimiento para tratamientos opcionales (cookies no esenciales, si se habilitan).",
+  "legal.privacy.section.retention.title": "5. Conservación",
+  "legal.privacy.section.retention.body":
+    "Los datos se conservan solo durante el tiempo necesario para el servicio y las obligaciones legales. Cuando dejan de ser necesarios, se bloquean o eliminan de forma segura según las políticas internas de conservación.",
+  "legal.privacy.section.recipients.title": "6. Destinatarios y encargados",
+  "legal.privacy.section.recipients.body":
+    "Los datos pueden comunicarse a proveedores necesarios para operar el servicio, siempre bajo contratos de encargado y deberes de confidencialidad.",
+  "legal.privacy.section.recipients.item1":
+    "Proveedores de infraestructura (hosting, almacenamiento, monitorización).",
+  "legal.privacy.section.recipients.item2":
+    "Proveedores de comunicación y soporte estrictamente necesarios para la operación.",
+  "legal.privacy.section.transfers.title": "7. Transferencias internacionales",
+  "legal.privacy.section.transfers.body":
+    "Si se realizan transferencias fuera del EEE, se aplicarán garantías adecuadas (decisiones de adecuación o cláusulas contractuales tipo) y se documentarán en [PROVIDERS_LIST].",
+  "legal.privacy.section.rights.title": "8. Derechos ARSULIPO",
+  "legal.privacy.section.rights.body":
+    "Puedes ejercer tus derechos de acceso, rectificación, supresión, limitación, oposición y portabilidad escribiendo a [LEGAL_EMAIL]. Podremos solicitar acreditación de identidad cuando sea legalmente exigible.",
+  "legal.privacy.section.rights.item1":
+    "Plazo de respuesta orientativo: un mes, ampliable cuando la normativa lo permita.",
+  "legal.privacy.section.rights.item2":
+    "El ejercicio es gratuito salvo solicitudes manifiestamente infundadas o excesivas.",
+  "legal.privacy.section.rights.item3":
+    "Puedes retirar tu consentimiento en cualquier momento para tratamientos basados en él.",
+  "legal.privacy.section.aepd.title": "9. Reclamación ante la AEPD",
+  "legal.privacy.section.aepd.body":
+    "Si consideras que tus derechos de protección de datos no han sido atendidos correctamente, puedes presentar reclamación ante la Agencia Española de Protección de Datos (AEPD): https://www.aepd.es.",
+  "legal.privacy.section.security.title": "10. Medidas de seguridad",
+  "legal.privacy.section.security.body":
+    "Aplicamos medidas técnicas y organizativas proporcionales al riesgo, incluyendo control de accesos por mínimo privilegio, transporte cifrado, protección de credenciales y mecanismos de trazabilidad.",
+  "legal.privacy.section.minors.title": "11. Menores",
+  "legal.privacy.section.minors.body":
+    "El servicio no está orientado a menores por debajo de la edad legal aplicable. Si se detectan datos de menores sin autorización válida, se eliminarán tan pronto como sea posible.",
+  "legal.privacy.section.changes.title": "12. Cambios en la política",
+  "legal.privacy.section.changes.body":
+    "Esta política puede actualizarse por cambios legales, técnicos u operativos. La fecha de última versión aparece al inicio.",
+
+  "legal.cookies.metaTitle": "Política de cookies",
+  "legal.cookies.metaDescription":
+    "Plantilla de política de cookies para España con categorías, base jurídica e instrucciones de gestión.",
+  "legal.cookies.title": "Política de cookies",
+  "legal.cookies.intro":
+    "Esta política describe el uso de cookies en PlannR conforme al RGPD, la LSSI-CE y las guías publicadas por la AEPD.",
+  "legal.cookies.section.definition.title": "1. Qué son las cookies",
+  "legal.cookies.section.definition.body":
+    "Las cookies son pequeños archivos que se guardan en el navegador para recordar preferencias, habilitar funcionalidades y obtener métricas de uso.",
+  "legal.cookies.section.types.title": "2. Tipos de cookies",
+  "legal.cookies.section.types.body":
+    "Las cookies pueden ser propias o de terceros, y de sesión o persistentes según su duración.",
+  "legal.cookies.section.types.item1":
+    "Cookies técnicas: necesarias para autenticación y funcionamiento básico de la plataforma.",
+  "legal.cookies.section.types.item2":
+    "Cookies de preferencias: recuerdan ajustes de interfaz como idioma o tema.",
+  "legal.cookies.section.types.item3":
+    "Cookies analíticas: miden uso y rendimiento (si se habilitan).",
+  "legal.cookies.section.types.item4":
+    "Cookies de marketing: perfilan usuarios con fines publicitarios (no activas por defecto).",
+  "legal.cookies.section.inventory.title": "3. Inventario de cookies",
+  "legal.cookies.section.inventory.body":
+    "El inventario final debe completarse antes de producción con los datos técnicos y plazos reales.",
+  "legal.cookies.section.inventory.item1": "Nombre de cookie: [COOKIE_NAME]",
+  "legal.cookies.section.inventory.item2":
+    "Proveedor: [COOKIE_PROVIDER] | Duración: [COOKIE_DURATION]",
+  "legal.cookies.section.inventory.item3":
+    "Finalidad y categoría: [COOKIE_PURPOSE_AND_CATEGORY]",
+  "legal.cookies.section.consent.title": "4. Consentimiento y gestión",
+  "legal.cookies.section.consent.body":
+    "Solo las cookies estrictamente necesarias se activan por defecto. Las no esenciales requieren consentimiento previo cuando la normativa lo exija, y dicho consentimiento debe poder retirarse en cualquier momento.",
+  "legal.cookies.section.disable.title": "5. Desactivación en navegadores",
+  "legal.cookies.section.disable.body":
+    "Puedes eliminar o bloquear cookies desde la configuración del navegador. Desactivar cookies técnicas puede afectar al funcionamiento del servicio.",
+  "legal.cookies.section.disable.item1":
+    "Chrome: Configuración > Privacidad y seguridad > Cookies y otros datos de sitios.",
+  "legal.cookies.section.disable.item2":
+    "Firefox: Ajustes > Privacidad y seguridad > Cookies y datos del sitio.",
+  "legal.cookies.section.disable.item3":
+    "Safari: Ajustes > Safari > Avanzado > Datos de sitios web.",
+  "legal.cookies.section.disable.item4":
+    "Edge: Configuración > Cookies y permisos de sitio.",
+  "legal.cookies.section.updates.title": "6. Actualizaciones",
+  "legal.cookies.section.updates.body":
+    "Esta política puede actualizarse por cambios normativos o por modificaciones en el uso de cookies. Revisa esta sección periódicamente.",
+
+  "legal.terms.metaTitle": "Términos y condiciones",
+  "legal.terms.metaDescription":
+    "Plantilla de términos y condiciones sobre uso de cuenta, responsabilidades, disponibilidad y jurisdicción.",
+  "legal.terms.title": "Términos y condiciones",
+  "legal.terms.intro":
+    "Estos términos regulan el acceso y uso de PlannR. Al crear una cuenta o usar el servicio, aceptas estas condiciones.",
+  "legal.terms.section.scope.title": "1. Objeto y ámbito",
+  "legal.terms.section.scope.body":
+    "Estas condiciones regulan la relación jurídica entre el prestador y los usuarios de la aplicación web.",
+  "legal.terms.section.account.title": "2. Cuenta y registro",
+  "legal.terms.section.account.body":
+    "El usuario debe facilitar datos veraces y mantener la confidencialidad de sus credenciales.",
+  "legal.terms.section.account.item1":
+    "Eres responsable de toda la actividad realizada desde tu cuenta.",
+  "legal.terms.section.account.item2":
+    "Debes notificar sin demora cualquier uso no autorizado o incidente de seguridad.",
+  "legal.terms.section.account.item3":
+    "Las cuentas pueden suspenderse por uso fraudulento o incumplimiento grave de estas condiciones.",
+  "legal.terms.section.usage.title": "3. Uso permitido",
+  "legal.terms.section.usage.body":
+    "El servicio debe utilizarse de forma lícita y sin perjudicar derechos o intereses del prestador o de terceros.",
+  "legal.terms.section.usage.item1":
+    "No se permiten intentos de acceso no autorizado, malware o abuso del servicio.",
+  "legal.terms.section.usage.item2":
+    "No se permite contenido ilícito, difamatorio, discriminatorio o que vulnere derechos.",
+  "legal.terms.section.usage.item3":
+    "No se permite ingeniería inversa, scraping o extracción automatizada fuera de lo legalmente permitido.",
+  "legal.terms.section.ip.title": "4. Propiedad intelectual e industrial",
+  "legal.terms.section.ip.body":
+    "El software, marcas, diseños y contenidos no generados por usuarios son titularidad o licencia del prestador y están protegidos por normativa de propiedad intelectual e industrial.",
+  "legal.terms.section.availability.title": "5. Disponibilidad del servicio",
+  "legal.terms.section.availability.body":
+    "El prestador hará esfuerzos razonables para mantener la continuidad del servicio, sin garantizar disponibilidad ininterrumpida por mantenimiento, actualizaciones o incidencias externas.",
+  "legal.terms.section.links.title": "6. Enlaces externos",
+  "legal.terms.section.links.body":
+    "Los enlaces externos se ofrecen por conveniencia. El prestador no responde del contenido, políticas o disponibilidad de terceros.",
+  "legal.terms.section.liability.title": "7. Limitación de responsabilidad",
+  "legal.terms.section.liability.body":
+    "En la máxima medida permitida por la ley, el prestador no responde por daños indirectos, lucro cesante o pérdida de datos derivados de uso indebido o causas externas fuera de su control razonable.",
+  "legal.terms.section.termination.title": "8. Terminación",
+  "legal.terms.section.termination.body":
+    "El usuario puede dejar de usar el servicio en cualquier momento. El prestador podrá suspender o cancelar accesos por obligación legal, riesgo de seguridad o incumplimiento material de estas condiciones.",
+  "legal.terms.section.law.title": "9. Ley aplicable y jurisdicción",
+  "legal.terms.section.law.body":
+    "Estas condiciones se rigen por la legislación española. Para controversias, las partes se someten a los juzgados y tribunales competentes según normativa de consumo y procesal, con referencia a Islas Baleares cuando legalmente sea posible.",
+
+  "legal.legalNotice.metaTitle": "Aviso legal",
+  "legal.legalNotice.metaDescription":
+    "Plantilla de aviso legal conforme a la LSSI-CE con identificación del prestador y condiciones de uso.",
+  "legal.legalNotice.title": "Aviso legal",
+  "legal.legalNotice.intro":
+    "Este aviso legal recoge la información obligatoria de identificación del prestador y las condiciones de uso del sitio conforme a la Ley 34/2002 (LSSI-CE).",
+  "legal.legalNotice.section.identification.title": "1. Datos identificativos del prestador",
+  "legal.legalNotice.section.identification.body":
+    "En cumplimiento del artículo 10 de la LSSI-CE, antes de publicar deben completarse los siguientes datos:",
+  "legal.legalNotice.section.identification.item1": "Titular / razón social: [COMPANY_NAME]",
+  "legal.legalNotice.section.identification.item2": "NIF/CIF: [TAX_ID]",
+  "legal.legalNotice.section.identification.item3":
+    "Domicilio social: [FULL_ADDRESS], Islas Baleares, España",
+  "legal.legalNotice.section.identification.item4": "Correo electrónico de contacto: [LEGAL_EMAIL]",
+  "legal.legalNotice.section.useConditions.title": "2. Condiciones de uso del sitio",
+  "legal.legalNotice.section.useConditions.body":
+    "El acceso al sitio implica aceptar estas condiciones. El usuario se compromete a utilizarlo de forma lícita y a no realizar actuaciones que puedan dañar sistemas, derechos o intereses legítimos.",
+  "legal.legalNotice.section.ip.title": "3. Propiedad intelectual e industrial",
+  "legal.legalNotice.section.ip.body":
+    "Todos los elementos del sitio (código fuente, interfaz, contenidos, logotipos y marcas) están protegidos por derechos de propiedad intelectual e industrial. Su reproducción, distribución o transformación requiere autorización previa salvo supuestos legales.",
+  "legal.legalNotice.section.liability.title": "4. Régimen de responsabilidad",
+  "legal.legalNotice.section.liability.body":
+    "El prestador no responde por errores derivados de fuerza mayor, interrupciones por mantenimiento o uso indebido por terceros. Podrá actualizar, suspender o retirar contenidos sin previo aviso cuando sea necesario.",
+  "legal.legalNotice.section.commercial.title": "5. Comunicaciones comerciales",
+  "legal.legalNotice.section.commercial.body":
+    "Las comunicaciones comerciales por medios electrónicos solo se enviarán cuando la normativa lo permita y, cuando sea exigible, con consentimiento previo y mecanismo sencillo de baja.",
+  "legal.legalNotice.section.jurisdiction.title": "6. Ley aplicable y jurisdicción",
+  "legal.legalNotice.section.jurisdiction.body":
+    "Este sitio se rige por la legislación española. Las controversias se someterán a los juzgados y tribunales competentes según normativa aplicable, con referencia a Islas Baleares cuando sea jurídicamente admisible.",
+  "legal.legalNotice.section.contact.title": "7. Contacto y requerimientos legales",
+  "legal.legalNotice.section.contact.body":
+    "Para comunicaciones legales, ejercicio de derechos o cuestiones de cumplimiento, utiliza los canales oficiales indicados a continuación.",
+  "legal.legalNotice.section.contact.item1": "Contacto legal general: [LEGAL_EMAIL]",
+  "legal.legalNotice.section.contact.item2": "Solicitudes de protección de datos: [DPO_CONTACT]",
+  "legal.legalNotice.todo.title": "HUMANO: completar antes de producción",
+  "legal.legalNotice.todo.description":
+    "Estos campos legales son obligatorios y deben completarse con datos reales de la empresa antes de publicar.",
+  "legal.legalNotice.todo.item1": "Confirmar razón social y NIF/CIF.",
+  "legal.legalNotice.todo.item2": "Incluir dirección postal completa en Islas Baleares.",
+  "legal.legalNotice.todo.item3": "Definir email legal de contacto y SLA de respuesta.",
+  "legal.legalNotice.todo.item4": "Definir contacto de DPO si aplica legalmente.",
+  "legal.legalNotice.todo.item5":
+    "Listar proveedores y transferencias internacionales con sus garantías.",
+  "legal.legalNotice.todo.item6":
+    "Publicar inventario real de cookies si hay analytics/marketing.",
+  "legal.legalNotice.todo.item7":
+    "Validar plazos de conservación y proceso interno de derechos.",
+  "legal.legalNotice.todo.item8": "Registrar aprobación final de asesoría jurídica.",
 
   "notFound.title": "Página no encontrada",
   "notFound.description": "La página que buscas no existe o ya no está disponible.",

@@ -89,6 +89,20 @@ function SettingsIcon() {
   );
 }
 
+function LegalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+      <path
+        d="M7 4.5h8.2l2.8 2.8V19a1.8 1.8 0 0 1-1.8 1.8H7A1.8 1.8 0 0 1 5.2 19V6.3A1.8 1.8 0 0 1 7 4.5Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M15.2 4.5v2.8h2.8M8.5 11.2h7M8.5 14.8h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function ProfileIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
@@ -313,6 +327,25 @@ export function ProfileMenu({ userLabel, navItems }: ProfileMenuProps) {
               >
                 <SettingsIcon />
                 {t("profile.settings")}
+              </Link>
+            );
+          })()}
+          {(() => {
+            const isActive = isActivePath(pathname, "/legal");
+            return (
+              <Link
+                href="/legal"
+                prefetch
+                onClick={() => setIsOpen(false)}
+                aria-current={isActive ? "page" : undefined}
+                className={`mt-1 flex min-h-11 items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)] ${
+                  isActive
+                    ? "bg-[color:var(--primary)] text-[color:var(--on-primary)] shadow-[var(--ui-shadow-sm)]"
+                    : "text-[color:var(--ui-text-muted)] hover:-translate-y-[1px] hover:bg-[color:var(--ui-surface-2)] hover:text-[color:var(--ui-text-strong)]"
+                }`}
+              >
+                <LegalIcon />
+                {t("profile.legal")}
               </Link>
             );
           })()}

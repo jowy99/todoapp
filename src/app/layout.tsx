@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
+import { PwaRegister } from "@/components/pwa/pwa-register";
 import { LocaleProvider } from "@/components/settings/locale-provider";
 import { ThemeProvider } from "@/components/settings/theme-provider";
 import { UiPreferencesProvider } from "@/components/settings/ui-preferences-provider";
@@ -41,12 +42,42 @@ export async function generateMetadata(): Promise<Metadata> {
     cookieLocale: cookieStore.get(LOCALE_COOKIE_KEY)?.value,
     acceptLanguage: requestHeaders.get("accept-language"),
   });
+  const appTitle = getMessage(locale, "app.title");
+  const appDescription = getMessage(locale, "app.description");
 
   return {
-    title: getMessage(locale, "app.title"),
-    description: getMessage(locale, "app.description"),
+    title: appTitle,
+    description: appDescription,
+    applicationName: appTitle,
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: [
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+      shortcut: ["/favicon.ico"],
+    },
+    appleWebApp: {
+      capable: true,
+      title: appTitle,
+      statusBarStyle: "default",
+    },
+    formatDetection: {
+      telephone: false,
+    },
   };
 }
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f7fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1220" },
+  ],
+};
 
 export default async function RootLayout({
   children,
@@ -90,6 +121,7 @@ export default async function RootLayout({
         className={`${manrope.variable} ${ibmPlexMono.variable} safe-px safe-pt safe-pb min-h-[100dvh] antialiased`}
       >
         <ThemeProvider>
+          <PwaRegister />
           <LocaleProvider initialLocale={initialLocale}>
             <UiPreferencesProvider
               initialWeekStart={initialWeekStart}

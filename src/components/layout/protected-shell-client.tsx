@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ReactNode, useMemo } from "react";
 import { usePathname } from "next/navigation";
+import { Footer } from "@/components/footer/Footer";
 import { ProfileMenu } from "@/components/layout/profile-menu";
 import { useT } from "@/components/settings/locale-provider";
 import type { MessageKey } from "@/lib/i18n/messages";
@@ -88,6 +89,7 @@ export function ProtectedShellClient({ userLabel, navItems, children }: Protecte
           {children}
         </div>
       </main>
+      <Footer variant="compact" />
     </div>
   );
 }
