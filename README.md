@@ -1,135 +1,198 @@
-# PlannR (Local-First)
+# PlannR
 
-Aplicación To-Do full-stack con Next.js (App Router), TypeScript, Prisma y PostgreSQL local (DBngin).
+Aplicación web de productividad **local-first** para gestión de tareas, listas y calendario, con colaboración básica, modo PWA y soporte i18n.
+
+## Qué es PlannR
+
+PlannR está pensada como una app tipo “workspace” para uso diario:
+
+- Gestión de tareas por estado, prioridad, lista y etiquetas.
+- Vistas de calendario: día, semana, mes y año.
+- Espacios compartidos para colaboración por listas.
+- Perfil, ajustes de idioma/tema y preferencias de UI.
+- Experiencia instalable como PWA.
+
+## Stack técnico
+
+- **Frontend:** Next.js 16 (App Router), React 19, TypeScript
+- **Estilos/UI:** Tailwind CSS 4 + design tokens propios
+- **Datos:** Prisma ORM + PostgreSQL
+- **Auth:** sesión por cookie HTTP-only
+- **Calidad:** ESLint, Prettier, Vitest
+
+## Estructura del proyecto
+
+```txt
+src/
+  app/
+    (protected)/      # rutas autenticadas: tasks, calendar, lists, profile, settings...
+    auth/             # login/registro
+    legal/            # centro legal y documentos
+    api/              # endpoints internos
+  components/         # layout, ui, páginas y módulos
+  lib/                # auth, i18n, preferencias, utilidades
+prisma/
+  schema.prisma
+  seed.ts
+public/
+  manifest.webmanifest
+  sw.js
+  icons/
+```
 
 ## Requisitos
 
-- Node `24.14.0`
+- Node.js `24.14.0`
 - pnpm `10.x`
-- PostgreSQL local (DBngin) en `localhost:5432`
+- PostgreSQL local (DBngin u otro servicio compatible)
 
-## Setup local
+## Puesta en marcha rápida
 
-1. Instala dependencias:
+1. Instalar dependencias:
 
 ```bash
 pnpm install
 ```
 
-2. Copia y ajusta variables:
+2. Crear `.env` a partir del ejemplo:
 
 ```bash
 cp .env.example .env
 ```
 
-3. Crea DB (si no existe), genera cliente y aplica migraciones:
+3. Validar conexión y crear base de datos si no existe:
 
 ```bash
+pnpm db:check
 pnpm db:create
-pnpm prisma:generate
-pnpm prisma migrate deploy
 ```
 
-4. Ejecuta la app:
+4. Aplicar migraciones y generar cliente Prisma:
+
+```bash
+pnpm prisma migrate deploy
+pnpm prisma:generate
+```
+
+5. (Opcional) Cargar datos de demo:
+
+```bash
+pnpm db:seed
+```
+
+6. Arrancar en desarrollo:
 
 ```bash
 pnpm dev
 ```
 
-Abre `http://localhost:3000`.
+Abrir `http://localhost:3000`.
 
-## Scripts útiles
+## Variables de entorno
 
-- `pnpm dev`
-- `pnpm build`
-- `pnpm lint`
-- `pnpm format`
-- `pnpm format:check`
-- `pnpm test`
-- `pnpm test:watch`
-- `pnpm db:create`
-- `pnpm db:check`
-- `pnpm prisma:generate`
-- `pnpm prisma:migrate`
-- `pnpm prisma:status`
-- `pnpm prisma:studio`
-- `pnpm prisma:seed`
+Variables mínimas (`.env.example`):
 
-## Guía UI/UX
+| Variable              | Descripción                                      |
+| --------------------- | ------------------------------------------------ |
+| `DATABASE_ADMIN_URL`  | conexión a DB admin para crear la base de la app |
+| `DATABASE_URL`        | conexión principal de aplicación (Prisma + Next) |
+| `SESSION_COOKIE_NAME` | nombre de cookie de sesión                       |
+| `SESSION_TTL_DAYS`    | duración de sesión en días                       |
 
-- Tokens, motion y reglas responsive: `docs/ui.md`
+Variable opcional:
 
-## Exportaciones
+| Variable                    | Descripción                                                 |
+| --------------------------- | ----------------------------------------------------------- |
+| `NEXT_PUBLIC_ENABLE_SW_DEV` | si es `true`, registra service worker también en `pnpm dev` |
 
-- JSON: `GET /api/export/tasks.json`
-- CSV: `GET /api/export/tasks.csv`
+## Scripts principales
 
-## Seguridad local
+| Script                              | Uso                                       |
+| ----------------------------------- | ----------------------------------------- |
+| `pnpm dev`                          | ejecutar entorno local                    |
+| `pnpm build`                        | build de producción                       |
+| `pnpm start`                        | servir build compilado                    |
+| `pnpm lint`                         | análisis estático con ESLint              |
+| `pnpm format` / `pnpm format:check` | formateo y verificación con Prettier      |
+| `pnpm test` / `pnpm test:watch`     | tests con Vitest                          |
+| `pnpm db:check`                     | verificar conectividad a PostgreSQL       |
+| `pnpm db:create`                    | crear base de datos local                 |
+| `pnpm prisma:migrate`               | flujo de migraciones en desarrollo        |
+| `pnpm prisma:status`                | estado de migraciones                     |
+| `pnpm prisma:studio`                | UI de Prisma Studio                       |
+| `pnpm db:seed`                      | poblar datos demo                         |
+| `pnpm i18n:check`                   | detección best-effort de textos hardcoded |
 
-- Sesiones en cookie HTTP-only.
+## PWA
 
-## Legal (HUMANO: completar antes de producción)
+PlannR incluye configuración base de PWA:
 
-Las rutas `/legal/*` están preparadas como plantilla legal para España (Islas Baleares, 26 de febrero de 2026), pero requieren revisión jurídica.
+- Manifest: `public/manifest.webmanifest`
+- Service worker: `public/sw.js`
+- Registro automático en cliente: `src/components/pwa/pwa-register.tsx`
+- Iconos: `public/icons/*`
 
-Checklist obligatorio:
+Notas:
 
-- Razón social / titular del tratamiento (`[COMPANY_NAME]`)
+- En producción, el service worker se registra automáticamente.
+- En desarrollo, solo se registra si `NEXT_PUBLIC_ENABLE_SW_DEV=true`.
+
+## i18n, tema y diseño
+
+- Idiomas activos: **es** y **en**
+- Diccionario central: `src/lib/i18n/messages.ts`
+- Preferencias de usuario (tema/idioma/UI): providers en `src/components/settings/*`
+- Guía de tokens y sistema visual: [`docs/ui.md`](docs/ui.md)
+
+## Datos de demo y carga realista
+
+Para generar datos de stress (tareas/listas/etiquetas/calendario), revisa:
+
+- [`docs/seed-data.md`](docs/seed-data.md)
+
+## Endpoints útiles
+
+- Export JSON: `GET /api/export/tasks.json`
+- Export CSV: `GET /api/export/tasks.csv`
+- Auth: `POST /api/auth/login`, `POST /api/auth/register`, `POST /api/auth/logout`
+
+## Centro legal (plantillas)
+
+Rutas disponibles:
+
+- `/legal/privacy`
+- `/legal/cookies`
+- `/legal/terms`
+- `/legal/legal-notice`
+
+Importante: son **plantillas** adaptadas a España (Islas Baleares, 26 de febrero de 2026) y requieren revisión legal humana antes de producción.
+
+Checklist pendiente obligatorio:
+
+- Razón social / titular (`[COMPANY_NAME]`)
 - NIF/CIF (`[TAX_ID]`)
-- Dirección completa en Islas Baleares (`[FULL_ADDRESS]`)
-- Email de contacto legal (`[LEGAL_EMAIL]`)
-- Datos de DPO (si aplica) (`[DPO_CONTACT]`)
-- Proveedores externos y países (`[PROVIDERS_LIST]`)
-- Inventario real de cookies (nombre/proveedor/duración/finalidad) (`[COOKIE_TABLE]`)
-- Validación final por asesoría jurídica (`[LEGAL_REVIEW_LOG]`)
+- Dirección completa (`[FULL_ADDRESS]`)
+- Email legal (`[LEGAL_EMAIL]`)
+- DPO (si aplica) (`[DPO_CONTACT]`)
+- Proveedores y países (`[PROVIDERS_LIST]`)
+- Inventario real de cookies (`[COOKIE_TABLE]`)
+- Validación final legal (`[LEGAL_REVIEW_LOG]`)
 
-## Publicar en GitHub
+## Troubleshooting rápido
 
-1. Asegúrate de usar Node correcto:
+1. Error de conexión a DB
+   - Verifica PostgreSQL activo en `localhost:5432`.
+   - Ejecuta `pnpm db:check`.
 
-```bash
-nvm use 24.14.0
-```
+2. Cambios no reflejados por caché PWA
+   - DevTools > Application > Service Workers > Unregister.
+   - Limpia almacenamiento y recarga.
 
-2. Verifica estado y calidad:
+3. Problemas de migraciones
+   - Revisa `pnpm prisma:status`.
+   - En entornos de desarrollo, aplica `pnpm prisma:migrate`.
 
-```bash
-pnpm format:check
-pnpm lint
-pnpm test
-pnpm build
-```
+## Estado del repositorio
 
-3. Comprueba que no subes secretos:
-
-```bash
-git status --short
-```
-
-- `.env` debe quedar ignorado.
-- `.env.example` sí debe subirse.
-
-4. Crea commit inicial:
-
-```bash
-git add .
-git commit -m "feat: initial local-first plannr app"
-```
-
-5. Crea un repo vacío en GitHub y enlaza remoto:
-
-```bash
-git remote add origin git@github.com:TU_USUARIO/TU_REPO.git
-```
-
-Si ya existe remoto:
-
-```bash
-git remote set-url origin git@github.com:TU_USUARIO/TU_REPO.git
-```
-
-6. Sube rama principal:
-
-```bash
-git push -u origin main
-```
+- Proyecto en evolución activa.
+- No hay licencia declarada en este repositorio por ahora.
