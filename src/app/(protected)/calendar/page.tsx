@@ -583,6 +583,26 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     localeTag,
     weekStartPreference,
   });
+  const toolbarCompactTitle =
+    resolvedView === "day"
+      ? new Intl.DateTimeFormat(localeTag, {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }).format(resolvedDate)
+      : resolvedView === "week"
+        ? new Intl.DateTimeFormat(localeTag, {
+            month: "short",
+            day: "2-digit",
+          }).format(weekStartDate)
+        : resolvedView === "year"
+          ? new Intl.DateTimeFormat(localeTag, {
+              year: "numeric",
+            }).format(resolvedDate)
+          : new Intl.DateTimeFormat(localeTag, {
+              month: "short",
+              year: "numeric",
+            }).format(resolvedDate);
   const previousDate = shiftFocusDate(resolvedDate, resolvedView, -1);
   const nextDate = shiftFocusDate(resolvedDate, resolvedView, 1);
   const todayDate = new Date();
@@ -770,6 +790,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   });
   const yearMonthLabelFormatter = new Intl.DateTimeFormat(localeTag, {
     month: "long",
+  });
+  const yearMonthShortLabelFormatter = new Intl.DateTimeFormat(localeTag, {
+    month: "short",
   });
   const miniWeekDays = weekDays.map((dayLabel) => dayLabel.slice(0, 1).toUpperCase());
   const todayDateKey = toDateKey(todayDate);
@@ -1243,12 +1266,15 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         <div className="ui-card relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[24px] p-0">
         <div className="sticky top-0 z-20 shrink-0 border-b border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] px-3 py-3 backdrop-blur sm:px-4 sm:py-3.5">
           <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-start justify-between gap-2 sm:items-center">
               <div className="min-w-0">
                 <p className="ui-kicker ui-kicker--muted">{t("nav.calendar")}</p>
-                <h1 className="truncate text-lg font-bold capitalize text-[color:var(--ui-text-strong)] sm:text-2xl">{toolbarTitle}</h1>
+                <h1 className="text-base leading-tight font-bold capitalize text-[color:var(--ui-text-strong)] sm:truncate sm:text-2xl">
+                  <span className="sm:hidden">{toolbarCompactTitle}</span>
+                  <span className="hidden sm:inline">{toolbarTitle}</span>
+                </h1>
               </div>
-              <div className="flex items-center gap-2 lg:hidden">
+              <div className="flex shrink-0 items-center gap-2 lg:hidden">
                 <Link
                   href={openSidebarHref}
                   aria-label={t("calendar.openFilters")}
@@ -1267,11 +1293,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                 <MobileNewTaskButton
                   defaultDate={quickCreateDefaultDate}
                   compact
-                  className="inline-flex sm:hidden"
-                />
-                <MobileNewTaskButton
-                  defaultDate={quickCreateDefaultDate}
-                  className="hidden sm:inline-flex lg:hidden"
+                  className="inline-flex lg:hidden"
                 />
               </div>
             </div>
@@ -1536,7 +1558,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             </section>
           ) : resolvedView === "year" ? (
             <section className="flex h-full min-h-0 flex-col">
-              <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 auto-rows-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="grid min-h-0 min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {yearMonths.map((monthDate) => {
                   const monthIndex = monthDate.getMonth();
                   const miniMonthStart = new Date(resolvedDate.getFullYear(), monthIndex, 1);
@@ -1554,13 +1577,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                     <Link
                       key={monthIndex}
                       href={calendarHref(miniMonthStart, "month")}
-                      className="group flex h-full min-h-0 flex-col rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-3 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-[color:var(--ui-border-strong)] hover:shadow-[0_16px_28px_-20px_rgb(15_23_42/0.8)]"
+                      className="group flex min-h-[210px] flex-col rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-3 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-[color:var(--ui-border-strong)] hover:shadow-[0_16px_28px_-20px_rgb(15_23_42/0.8)] sm:min-h-[230px]"
                     >
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-sm font-semibold capitalize text-[color:var(--ui-text-strong)]">
-                          {yearMonthLabelFormatter.format(monthDate)}
+                      <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+                        <p className="min-w-0 truncate text-sm font-semibold capitalize text-[color:var(--ui-text-strong)]">
+                          <span className="sm:hidden">{yearMonthShortLabelFormatter.format(monthDate)}</span>
+                          <span className="hidden sm:inline">{yearMonthLabelFormatter.format(monthDate)}</span>
                         </p>
-                        <p className="text-[11px] font-semibold text-[color:var(--ui-text-muted)]">{monthTaskCount}</p>
+                        <p className="shrink-0 text-[11px] font-semibold text-[color:var(--ui-text-muted)]">{monthTaskCount}</p>
                       </div>
                       <div className="grid flex-1 content-start grid-cols-7 gap-1">
                         {miniWeekDays.map((day, dayIndex) => (
@@ -1597,12 +1621,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                   );
                 })}
               </div>
+              </div>
             </section>
           ) : (
             <>
-              <section className="md:hidden">
-                <div className="rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] p-2">
-                  <div className="grid grid-cols-7 gap-1">
+              <section className="flex h-full min-h-0 flex-col md:hidden">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                  <div className="rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] p-2">
+                    <div className="grid grid-cols-7 gap-1">
                     {weekDays.map((day) => (
                       <p key={day} className="px-1 py-1 text-center text-[10px] font-bold tracking-[0.08em] text-[color:var(--ui-text-muted)] uppercase">
                         {day}
@@ -1613,7 +1639,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                         {week.cells.map((cell) => (
                           <article
                             key={cell.cellIndex}
-                            className={`relative min-h-[88px] min-w-0 overflow-hidden rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] p-2 ${
+                            className={`relative min-h-[58px] min-w-0 overflow-hidden rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] p-2 sm:min-h-[72px] ${
                               cell.isVisibleMonth
                                 ? cell.isSelectedDayCell
                                   ? "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] ring-2 ring-[color:var(--ui-border-strong)]"
@@ -1674,6 +1700,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                         ))}
                       </div>
                     ))}
+                    </div>
                   </div>
                 </div>
                 {isDaySheetOpen && resolvedDaySheetDate ? renderDayDetailsPanel("mobile") : null}

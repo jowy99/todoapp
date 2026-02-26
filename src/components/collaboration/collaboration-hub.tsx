@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { fetchApi } from "@/lib/client-api";
-import { useLocalePreference, useT } from "@/components/settings/locale-provider";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { fetchApi, isApiRequestError } from "@/lib/client-api";
+import { useT } from "@/components/settings/locale-provider";
+import { useAppToast } from "@/components/ui/toaster-provider";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
@@ -10,6 +11,7 @@ type Role = "VIEWER" | "EDITOR";
 
 type UserPreview = {
   id: string;
+  username?: string | null;
   email: string;
   displayName: string | null;
 };
@@ -42,73 +44,32 @@ type SharedListItem = {
   };
 };
 
-type SharedTaskItem = {
-  id: string;
-  title: string;
-  status: "TODO" | "IN_PROGRESS" | "DONE";
-  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-  isCompleted: boolean;
-  canEdit: boolean;
-  accessRole: "OWNER" | Role;
-  list: {
-    id: string;
-    name: string;
-    owner: UserPreview;
-  };
-};
-
-type TaskComment = {
-  id: string;
-  body: string;
-  createdAt: string;
-  author: UserPreview;
-};
-
-type TaskActivity = {
-  id: string;
-  message: string;
-  createdAt: string;
-  type: string;
-  actor: UserPreview | null;
-};
-
 type CollaborationHubProps = {
   initialOwnedLists: OwnedListItem[];
   initialSharedLists: SharedListItem[];
-  initialSharedTasks: SharedTaskItem[];
 };
 
 function displayName(user: UserPreview) {
-  return user.displayName?.trim() || user.email;
+  return user.displayName?.trim() || user.username?.trim() || user.email;
 }
 
 export function CollaborationHub({
   initialOwnedLists,
   initialSharedLists,
-  initialSharedTasks,
 }: CollaborationHubProps) {
   const t = useT();
-  const { locale } = useLocalePreference();
-  const localeTag = locale === "es" ? "es-ES" : "en-US";
+  const { pushToast } = useAppToast();
   const [ownedLists, setOwnedLists] = useState(initialOwnedLists);
   const [sharedLists] = useState(initialSharedLists);
-  const [sharedTasks, setSharedTasks] = useState(initialSharedTasks);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
 
-  const [inviteEmail, setInviteEmail] = useState<Record<string, string>>({});
+  const [inviteIdentifier, setInviteIdentifier] = useState<Record<string, string>>({});
   const [inviteRole, setInviteRole] = useState<Record<string, Role>>({});
-  const [selectedTaskId, setSelectedTaskId] = useState<string>(initialSharedTasks[0]?.id ?? "");
-  const [commentInput, setCommentInput] = useState("");
-  const [comments, setComments] = useState<TaskComment[]>([]);
-  const [activity, setActivity] = useState<TaskActivity[]>([]);
-  const [isLoadingStreams, setIsLoadingStreams] = useState(false);
-
-  const selectedTask = useMemo(
-    () => sharedTasks.find((task) => task.id === selectedTaskId) ?? null,
-    [selectedTaskId, sharedTasks],
-  );
+  const [inviteSuggestions, setInviteSuggestions] = useState<Record<string, UserPreview[]>>({});
+  const [isSearchingUsers, setIsSearchingUsers] = useState<Record<string, boolean>>({});
+  const [isSuggestionOpen, setIsSuggestionOpen] = useState<Record<string, boolean>>({});
+  const searchRequestIds = useRef<Record<string, number>>({});
+  const searchTimers = useRef<Record<string, ReturnType<typeof setTimeout> | undefined>>({});
   const roleLabels = useMemo(
     () => ({
       VIEWER: t("collaboration.role.viewer"),
@@ -117,44 +78,118 @@ export function CollaborationHub({
     }),
     [t],
   );
-  const statusLabels = useMemo(
-    () => ({
-      TODO: t("tasks.status.todo"),
-      IN_PROGRESS: t("tasks.status.inProgress"),
-      DONE: t("tasks.status.done"),
-    }),
-    [t],
-  );
-  const priorityLabels = useMemo(
-    () => ({
-      LOW: t("tasks.priority.low"),
-      MEDIUM: t("tasks.priority.medium"),
-      HIGH: t("tasks.priority.high"),
-      URGENT: t("tasks.priority.urgent"),
-    }),
-    [t],
+
+  useEffect(() => {
+    const activeTimers = searchTimers.current;
+    return () => {
+      for (const timer of Object.values(activeTimers)) {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+    };
+  }, []);
+
+  const resolveErrorMessage = useCallback((reason: unknown, fallback: string) => {
+    if (isApiRequestError(reason)) {
+      return fallback;
+    }
+    return reason instanceof Error ? reason.message : fallback;
+  }, []);
+
+  const showErrorToast = useCallback((reason: unknown, fallback: string) => {
+    pushToast({
+      variant: "error",
+      message: resolveErrorMessage(reason, fallback),
+    });
+  }, [pushToast, resolveErrorMessage]);
+
+  const loadInviteSuggestions = useCallback(
+    (listId: string, rawValue: string) => {
+      const query = rawValue.trim();
+      const currentTimer = searchTimers.current[listId];
+      if (currentTimer) {
+        clearTimeout(currentTimer);
+      }
+
+      if (query.length < 2) {
+        setInviteSuggestions((prev) => ({ ...prev, [listId]: [] }));
+        setIsSearchingUsers((prev) => ({ ...prev, [listId]: false }));
+        setIsSuggestionOpen((prev) => ({ ...prev, [listId]: false }));
+        return;
+      }
+
+      setIsSuggestionOpen((prev) => ({ ...prev, [listId]: true }));
+      setIsSearchingUsers((prev) => ({ ...prev, [listId]: true }));
+
+      searchTimers.current[listId] = setTimeout(() => {
+        const nextRequestId = (searchRequestIds.current[listId] ?? 0) + 1;
+        searchRequestIds.current[listId] = nextRequestId;
+
+        void fetchApi<{ users: UserPreview[] }>(
+          `/api/collaboration/lists/${listId}/members?query=${encodeURIComponent(query)}`,
+        )
+          .then((data) => {
+            if (searchRequestIds.current[listId] !== nextRequestId) {
+              return;
+            }
+            setInviteSuggestions((prev) => ({
+              ...prev,
+              [listId]: data.users,
+            }));
+          })
+          .catch((searchError) => {
+            if (searchRequestIds.current[listId] !== nextRequestId) {
+              return;
+            }
+
+            setInviteSuggestions((prev) => ({ ...prev, [listId]: [] }));
+            showErrorToast(searchError, t("collaboration.error.userSearch"));
+          })
+          .finally(() => {
+            if (searchRequestIds.current[listId] !== nextRequestId) {
+              return;
+            }
+            setIsSearchingUsers((prev) => ({ ...prev, [listId]: false }));
+          });
+      }, 160);
+    },
+    [showErrorToast, t],
   );
 
-  function clearMessages() {
-    setNotice(null);
-    setError(null);
+  function onInviteInputChange(listId: string, nextValue: string) {
+    setInviteIdentifier((prev) => ({
+      ...prev,
+      [listId]: nextValue,
+    }));
+    loadInviteSuggestions(listId, nextValue);
   }
 
-  function onError(reason: unknown, fallback: string) {
-    setNotice(null);
-    setError(reason instanceof Error ? reason.message : fallback);
+  function onSelectSuggestedUser(listId: string, user: UserPreview) {
+    const value = user.username?.trim() || user.email;
+    setInviteIdentifier((prev) => ({
+      ...prev,
+      [listId]: value,
+    }));
+    setInviteSuggestions((prev) => ({
+      ...prev,
+      [listId]: [],
+    }));
+    setIsSuggestionOpen((prev) => ({
+      ...prev,
+      [listId]: false,
+    }));
   }
 
   async function handleInvite(event: FormEvent<HTMLFormElement>, listId: string) {
     event.preventDefault();
-    clearMessages();
     setIsBusy(true);
 
     try {
-      const email = inviteEmail[listId]?.trim();
+      const identifier = inviteIdentifier[listId]?.trim();
 
-      if (!email) {
-        throw new Error(t("collaboration.error.emailRequired"));
+      if (!identifier) {
+        throw new Error(t("collaboration.error.identifierRequired"));
       }
 
       const role = inviteRole[listId] ?? "VIEWER";
@@ -167,7 +202,7 @@ export function CollaborationHub({
         };
       }>(`/api/collaboration/lists/${listId}/members`, {
         method: "POST",
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ identifier, role }),
       });
 
       setOwnedLists((prev) =>
@@ -200,17 +235,25 @@ export function CollaborationHub({
         }),
       );
 
-      setInviteEmail((prev) => ({ ...prev, [listId]: "" }));
-      setNotice(t("collaboration.notice.invited"));
+      setInviteIdentifier((prev) => ({ ...prev, [listId]: "" }));
+      setInviteSuggestions((prev) => ({ ...prev, [listId]: [] }));
+      setIsSuggestionOpen((prev) => ({ ...prev, [listId]: false }));
+      pushToast({
+        variant: "success",
+        message: t("collaboration.notice.invited"),
+      });
     } catch (inviteError) {
-      onError(inviteError, t("collaboration.error.invite"));
+      if (isApiRequestError(inviteError) && inviteError.status === 404) {
+        showErrorToast(inviteError, t("collaboration.error.userNotFound"));
+      } else {
+        showErrorToast(inviteError, t("collaboration.error.invite"));
+      }
     } finally {
       setIsBusy(false);
     }
   }
 
   async function handleRoleChange(listId: string, memberId: string, role: Role) {
-    clearMessages();
     setIsBusy(true);
 
     try {
@@ -240,9 +283,12 @@ export function CollaborationHub({
         }),
       );
 
-      setNotice(t("collaboration.notice.roleUpdated"));
+      pushToast({
+        variant: "success",
+        message: t("collaboration.notice.roleUpdated"),
+      });
     } catch (roleError) {
-      onError(roleError, t("collaboration.error.role"));
+      showErrorToast(roleError, t("collaboration.error.role"));
     } finally {
       setIsBusy(false);
     }
@@ -255,7 +301,6 @@ export function CollaborationHub({
       return;
     }
 
-    clearMessages();
     setIsBusy(true);
 
     try {
@@ -280,99 +325,16 @@ export function CollaborationHub({
         }),
       );
 
-      setNotice(t("collaboration.notice.removed"));
+      pushToast({
+        variant: "success",
+        message: t("collaboration.notice.removed"),
+      });
     } catch (removeError) {
-      onError(removeError, t("collaboration.error.remove"));
+      showErrorToast(removeError, t("collaboration.error.remove"));
     } finally {
       setIsBusy(false);
     }
   }
-
-  const loadTaskStreams = useCallback(async (taskId: string) => {
-    if (!taskId) {
-      setComments([]);
-      setActivity([]);
-      return;
-    }
-
-    setIsLoadingStreams(true);
-
-    try {
-      const [commentsData, activityData] = await Promise.all([
-        fetchApi<{ comments: TaskComment[] }>(`/api/tasks/${taskId}/comments`),
-        fetchApi<{ activity: TaskActivity[] }>(`/api/tasks/${taskId}/activity`),
-      ]);
-
-      setComments(commentsData.comments);
-      setActivity(activityData.activity);
-    } catch (streamError) {
-      onError(streamError, t("collaboration.error.streams"));
-    } finally {
-      setIsLoadingStreams(false);
-    }
-  }, [t]);
-
-  async function handleAddComment(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!selectedTaskId) {
-      return;
-    }
-
-    clearMessages();
-    setIsBusy(true);
-
-    try {
-      const body = commentInput.trim();
-
-      if (!body) {
-        throw new Error(t("collaboration.error.commentRequired"));
-      }
-
-      await fetchApi<{ comment: TaskComment }>(`/api/tasks/${selectedTaskId}/comments`, {
-        method: "POST",
-        body: JSON.stringify({ body }),
-      });
-
-      setCommentInput("");
-      setNotice(t("collaboration.notice.commentAdded"));
-      await loadTaskStreams(selectedTaskId);
-    } catch (commentError) {
-      onError(commentError, t("collaboration.error.comment"));
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function toggleTaskStatus(task: SharedTaskItem) {
-    if (!task.canEdit) {
-      return;
-    }
-
-    clearMessages();
-    setIsBusy(true);
-
-    try {
-      const data = await fetchApi<{ task: SharedTaskItem }>(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          isCompleted: !task.isCompleted,
-        }),
-      });
-
-      setSharedTasks((prev) => prev.map((item) => (item.id === task.id ? data.task : item)));
-      setNotice(t("collaboration.notice.taskStatusUpdated"));
-      await loadTaskStreams(task.id);
-    } catch (toggleError) {
-      onError(toggleError, t("collaboration.error.taskStatus"));
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    void loadTaskStreams(selectedTaskId);
-  }, [loadTaskStreams, selectedTaskId]);
 
   return (
     <section className="h-full min-h-0 min-w-0 space-y-5 overflow-y-auto px-3 py-3 sm:space-y-6 sm:px-4 sm:py-4 lg:px-5 lg:py-5">
@@ -395,14 +357,8 @@ export function CollaborationHub({
           <span className="ui-chip bg-primary/10 text-primary-strong font-semibold shadow-sm">
             {t("collaboration.countShared", { count: sharedLists.length })}
           </span>
-          <span className="ui-chip bg-accent/10 text-[color:var(--ui-text-strong)] font-semibold shadow-sm">
-            {t("collaboration.countTasks", { count: sharedTasks.length })}
-          </span>
         </div>
       </header>
-
-      {error ? <p className="ui-alert ui-alert--danger">{error}</p> : null}
-      {notice ? <p className="ui-alert ui-alert--success">{notice}</p> : null}
 
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3">
@@ -442,19 +398,67 @@ export function CollaborationHub({
                 onSubmit={(event) => handleInvite(event, list.id)}
                 className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
               >
-                <Input
-                  type="email"
-                  required
-                  value={inviteEmail[list.id] ?? ""}
-                  onChange={(event) =>
-                    setInviteEmail((prev) => ({
-                      ...prev,
-                      [list.id]: event.target.value,
-                    }))
-                  }
-                  placeholder={t("collaboration.invitePlaceholder")}
-                  className="ui-field min-w-0"
-                />
+                <div className="relative min-w-0">
+                  <Input
+                    type="text"
+                    required
+                    value={inviteIdentifier[list.id] ?? ""}
+                    onChange={(event) => onInviteInputChange(list.id, event.target.value)}
+                    onFocus={() => {
+                      if ((inviteSuggestions[list.id]?.length ?? 0) > 0) {
+                        setIsSuggestionOpen((prev) => ({ ...prev, [list.id]: true }));
+                      }
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => {
+                        setIsSuggestionOpen((prev) => ({ ...prev, [list.id]: false }));
+                      }, 130);
+                    }}
+                    autoComplete="off"
+                    placeholder={t("collaboration.invitePlaceholder")}
+                    className="ui-field min-w-0"
+                  />
+                  {isSuggestionOpen[list.id] ? (
+                    <div
+                      role="listbox"
+                      aria-label={t("collaboration.userSuggestions")}
+                      className="border-border bg-surface/95 absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border p-1 shadow-[var(--ui-shadow-md)] backdrop-blur-md"
+                    >
+                      {isSearchingUsers[list.id] ? (
+                        <p className="text-muted px-3 py-2 text-sm">{t("common.loading")}</p>
+                      ) : null}
+                      {!isSearchingUsers[list.id] &&
+                      (inviteIdentifier[list.id]?.trim().length ?? 0) >= 2 &&
+                      (inviteSuggestions[list.id]?.length ?? 0) === 0 ? (
+                        <p className="text-muted px-3 py-2 text-sm">{t("collaboration.noUsersFound")}</p>
+                      ) : null}
+                      {!isSearchingUsers[list.id]
+                        ? (inviteSuggestions[list.id] ?? []).map((user) => (
+                            <button
+                              key={user.id}
+                              type="button"
+                              role="option"
+                              aria-selected={
+                                (inviteIdentifier[list.id]?.trim().toLowerCase() ?? "") ===
+                                (user.username?.trim().toLowerCase() || user.email.toLowerCase())
+                              }
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => onSelectSuggestedUser(list.id, user)}
+                              className="hover:bg-surface-strong/80 focus-visible:ring-primary/35 flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
+                            >
+                              <span className="text-sm font-semibold text-[color:var(--ui-text-strong)]">
+                                {displayName(user)}
+                              </span>
+                              <span className="text-muted text-xs">
+                                {user.username ? `@${user.username} · ` : ""}
+                                {user.email}
+                              </span>
+                            </button>
+                          ))
+                        : null}
+                    </div>
+                  ) : null}
+                </div>
                 <Select
                   value={inviteRole[list.id] ?? "VIEWER"}
                   onChange={(event) =>
@@ -482,6 +486,9 @@ export function CollaborationHub({
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">{displayName(member.user)}</p>
+                      {member.user.username?.trim() ? (
+                        <p className="text-muted truncate text-xs">@{member.user.username}</p>
+                      ) : null}
                       <p className="text-muted truncate text-xs">{member.user.email}</p>
                     </div>
                     <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -543,126 +550,6 @@ export function CollaborationHub({
         )}
       </section>
 
-      <section className="space-y-4">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="ui-kicker ui-kicker--muted">{t("collaboration.tracking")}</p>
-            <h2 className="ui-title-lg mt-1">{t("collaboration.commentsAndActivity")}</h2>
-          </div>
-          <span className="ui-pill">{sharedTasks.length}</span>
-        </div>
-
-        {sharedTasks.length === 0 ? (
-          <p className="ui-empty">{t("collaboration.emptyTasks")}</p>
-        ) : (
-          <>
-            <div className="ui-card p-4 sm:p-5">
-              <label className="block space-y-1 text-sm font-medium">
-                <span>{t("collaboration.selectTask")}</span>
-                <Select
-                  value={selectedTaskId}
-                  onChange={(event) => setSelectedTaskId(event.target.value)}
-                  className="ui-field w-full"
-                >
-                  {sharedTasks.map((task) => (
-                    <option key={task.id} value={task.id}>
-                      {task.title} ({task.list.name})
-                    </option>
-                  ))}
-                </Select>
-              </label>
-
-              {selectedTask ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="ui-chip ui-chip--meta">{t("collaboration.role", { role: roleLabels[selectedTask.accessRole] })}</span>
-                  <span className="ui-chip ui-chip--meta">{t("collaboration.status", { status: statusLabels[selectedTask.status] })}</span>
-                  <span className="ui-chip ui-chip--meta">{t("collaboration.priority", { priority: priorityLabels[selectedTask.priority] })}</span>
-                  <button
-                    type="button"
-                    disabled={!selectedTask.canEdit || isBusy}
-                    onClick={() => void toggleTaskStatus(selectedTask)}
-                    className="ui-btn ui-btn--primary ui-btn--compact min-h-9 rounded-full px-3"
-                  >
-                    {selectedTask.isCompleted ? t("collaboration.markPending") : t("collaboration.markCompleted")}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              <article className="ui-card p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold tracking-wide text-[color:var(--ui-text-strong)] uppercase">{t("collaboration.comments")}</h3>
-                  <span className="ui-pill text-[11px]">{comments.length}</span>
-                </div>
-                <form onSubmit={handleAddComment} className="mt-3 flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    value={commentInput}
-                    onChange={(event) => setCommentInput(event.target.value)}
-                    placeholder={t("collaboration.commentPlaceholder")}
-                    className="ui-field min-w-0 flex-1"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isBusy || !selectedTask}
-                    className="ui-btn ui-btn--primary min-h-10 sm:min-h-11"
-                  >
-                    {t("collaboration.send")}
-                  </button>
-                </form>
-                <div className="mt-3 max-h-60 space-y-2 overflow-auto pr-1 sm:max-h-72">
-                  {isLoadingStreams ? (
-                    <div className="space-y-2">
-                      <div className="ui-skeleton h-11 w-full" />
-                      <div className="ui-skeleton h-11 w-full" />
-                    </div>
-                  ) : null}
-                  {!isLoadingStreams && comments.length === 0 ? <p className="ui-empty">{t("collaboration.emptyComments")}</p> : null}
-                  {comments.map((comment) => (
-                    <div
-                      key={comment.id}
-                      className="border-border bg-surface-strong/60 rounded-xl border px-3 py-2"
-                    >
-                      <p className="text-sm text-[color:var(--ui-text-strong)]">{comment.body}</p>
-                      <p className="text-muted mt-1 text-xs">
-                        {displayName(comment.author)} · {new Date(comment.createdAt).toLocaleString(localeTag)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </article>
-
-              <article className="ui-card p-4 sm:p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold tracking-wide text-[color:var(--ui-text-strong)] uppercase">{t("collaboration.activity")}</h3>
-                  <span className="ui-pill text-[11px]">{activity.length}</span>
-                </div>
-                <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1 sm:max-h-96">
-                  {isLoadingStreams ? (
-                    <div className="space-y-2">
-                      <div className="ui-skeleton h-11 w-full" />
-                      <div className="ui-skeleton h-11 w-full" />
-                    </div>
-                  ) : null}
-                  {!isLoadingStreams && activity.length === 0 ? <p className="ui-empty">{t("collaboration.emptyActivity")}</p> : null}
-                  {activity.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="border-border bg-surface-strong/60 rounded-xl border px-3 py-2"
-                    >
-                      <p className="text-sm text-[color:var(--ui-text-strong)]">{entry.message}</p>
-                      <p className="text-muted mt-1 text-xs">
-                        {entry.actor ? displayName(entry.actor) : t("collaboration.system")} ·{" "}
-                        {new Date(entry.createdAt).toLocaleString(localeTag)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </article>
-            </div>
-          </>
-        )}
-      </section>
     </section>
   );
 }

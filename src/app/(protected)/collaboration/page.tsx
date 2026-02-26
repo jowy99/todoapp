@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 export default async function CollaborationPage() {
   const user = await requireCurrentUser();
 
-  const [ownedLists, sharedLists, sharedTasks] = await Promise.all([
+  const [ownedLists, sharedLists] = await Promise.all([
     prisma.list.findMany({
       where: {
         ownerId: user.id,
@@ -23,6 +23,7 @@ export default async function CollaborationPage() {
             user: {
               select: {
                 id: true,
+                username: true,
                 email: true,
                 displayName: true,
               },
@@ -53,6 +54,7 @@ export default async function CollaborationPage() {
         owner: {
           select: {
             id: true,
+            username: true,
             email: true,
             displayName: true,
           },
@@ -73,50 +75,6 @@ export default async function CollaborationPage() {
         },
       },
     }),
-    prisma.task.findMany({
-      where: {
-        list: {
-          collaborators: {
-            some: {
-              userId: user.id,
-            },
-          },
-        },
-      },
-      orderBy: [{ updatedAt: "desc" }],
-      take: 60,
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        priority: true,
-        isCompleted: true,
-        ownerId: true,
-        list: {
-          select: {
-            id: true,
-            name: true,
-            ownerId: true,
-            owner: {
-              select: {
-                id: true,
-                email: true,
-                displayName: true,
-              },
-            },
-            collaborators: {
-              where: {
-                userId: user.id,
-              },
-              select: {
-                role: true,
-              },
-              take: 1,
-            },
-          },
-        },
-      },
-    }),
   ]);
 
   const normalizedSharedLists = sharedLists.map((list) => ({
@@ -128,38 +86,10 @@ export default async function CollaborationPage() {
     _count: list._count,
   }));
 
-  const normalizedSharedTasks = sharedTasks.flatMap((task) => {
-    if (!task.list) {
-      return [];
-    }
-
-    const role: "VIEWER" | "EDITOR" = task.list.collaborators[0]?.role ?? "VIEWER";
-    const accessRole: "OWNER" | "VIEWER" | "EDITOR" =
-      task.ownerId === user.id || task.list.ownerId === user.id ? "OWNER" : role;
-
-    return [
-      {
-        id: task.id,
-        title: task.title,
-        status: task.status,
-        priority: task.priority,
-        isCompleted: task.isCompleted,
-        accessRole,
-        canEdit: accessRole === "OWNER" || accessRole === "EDITOR",
-        list: {
-          id: task.list.id,
-          name: task.list.name,
-          owner: task.list.owner,
-        },
-      },
-    ];
-  });
-
   return (
     <CollaborationHub
       initialOwnedLists={ownedLists}
       initialSharedLists={normalizedSharedLists}
-      initialSharedTasks={normalizedSharedTasks}
     />
   );
 }

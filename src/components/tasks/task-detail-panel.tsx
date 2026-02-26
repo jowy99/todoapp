@@ -177,10 +177,10 @@ export function TaskDetailPanel({
           onClick={onClose}
           aria-label={t("tasks.closeDetailLabel")}
           title={t("tasks.closeDetailLabel")}
-          className="ui-btn ui-btn--secondary h-11 w-11 rounded-full p-0 text-[color:var(--ui-text-muted)] sm:h-9 sm:w-9"
+          className="ui-btn ui-btn--secondary h-12 w-12 rounded-full p-0 text-[color:var(--ui-text-strong)] ring-1 ring-[color:var(--ui-border-soft)] sm:h-11 sm:w-11"
         >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-            <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" strokeWidth="2" />
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+            <path d="m7 7 10 10M17 7 7 17" stroke="currentColor" strokeWidth="2.35" />
           </svg>
         </button>
       </div>

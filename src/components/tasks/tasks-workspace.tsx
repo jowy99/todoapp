@@ -163,6 +163,8 @@ const TaskRow = memo(function TaskRow({
   onToggleCompletion,
   onToggleDetails,
 }: TaskRowProps) {
+  const metaChipBaseClass =
+    "inline-flex min-h-[1.55rem] items-center gap-1.5 rounded-md border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-2 py-0.5 text-[11px] leading-none font-semibold text-[color:var(--ui-text-muted)]";
   const t = useT();
   const { locale } = useLocalePreference();
   const localeTag = locale === "es" ? "es-ES" : "en-US";
@@ -191,7 +193,30 @@ const TaskRow = memo(function TaskRow({
     () => (task.dueDate ? new Date(task.dueDate).toLocaleDateString(localeTag) : null),
     [localeTag, task.dueDate],
   );
+  const priorityDotClass = useMemo(() => {
+    if (task.priority === "URGENT") {
+      return "bg-rose-500";
+    }
+    if (task.priority === "HIGH") {
+      return "bg-amber-500";
+    }
+    if (task.priority === "MEDIUM") {
+      return "bg-blue-500";
+    }
+    return "bg-slate-400";
+  }, [task.priority]);
+  const statusDotClass = useMemo(() => {
+    if (task.status === "DONE") {
+      return "bg-emerald-500";
+    }
+    if (task.status === "IN_PROGRESS") {
+      return "bg-violet-500";
+    }
+    return "bg-slate-400";
+  }, [task.status]);
   const firstTagName = task.tags[0]?.tag.name ?? null;
+  const firstTagColor = task.tags[0]?.tag.color ?? null;
+  const additionalTagCount = Math.max(0, task.tags.length - 1);
 
   const handleToggleCompletion = useCallback(() => {
     void onToggleCompletion(task);
@@ -218,6 +243,77 @@ const TaskRow = memo(function TaskRow({
     [onToggleDetails, task],
   );
 
+  const renderMetaChips = () => (
+    <>
+      {dueDateLabel ? (
+        <span
+          title={`${t("tasks.dueDate")}: ${dueDateLabel}`}
+          className={`${metaChipBaseClass} text-[color:var(--ui-text-strong)]`}
+        >
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[color:var(--ui-text-soft)]" fill="none" aria-hidden>
+            <rect x="4" y="5.5" width="16" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M8 3.8v3.4M16 3.8v3.4M4 9.5h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <span>{dueDateLabel}</span>
+        </span>
+      ) : null}
+      <span
+        title={`${t("tasks.priority")}: ${priorityLabel}`}
+        className={`${metaChipBaseClass} text-[color:var(--ui-text-strong)]`}
+      >
+        <span className={`h-2 w-2 rounded-full ${priorityDotClass}`} aria-hidden />
+        <span>{priorityLabel}</span>
+      </span>
+      <span
+        title={`${t("tasks.status")}: ${statusLabel}`}
+        className={`${metaChipBaseClass} text-[color:var(--ui-text-strong)]`}
+      >
+        <span className={`h-2 w-2 rounded-full ${statusDotClass}`} aria-hidden />
+        <span>{statusLabel}</span>
+      </span>
+      {task.list ? (
+        <span
+          title={`${t("tasks.list")}: ${task.list.name}`}
+          className={`${metaChipBaseClass} text-[color:var(--ui-text-strong)]`}
+        >
+          <span
+            className="h-2 w-2 rounded-[3px]"
+            style={{ backgroundColor: task.list.color ?? "#f87171" }}
+          />
+          <span className="max-w-[120px] truncate">{task.list.name}</span>
+        </span>
+      ) : (
+        <span
+          title={`${t("tasks.list")}: ${t("tasks.noList")}`}
+          className={metaChipBaseClass}
+        >
+          {t("tasks.noList")}
+        </span>
+      )}
+      {firstTagName ? (
+        <span
+          title={`${t("tasks.tags")}: ${firstTagName}`}
+          className={metaChipBaseClass}
+        >
+          <span className="text-[color:var(--ui-text-soft)]" aria-hidden>#</span>
+          {firstTagColor ? (
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: firstTagColor }}
+              aria-hidden
+            />
+          ) : null}
+          <span className="max-w-[116px] truncate">{firstTagName}</span>
+          {additionalTagCount > 0 ? (
+            <span className="rounded-full bg-[color:var(--ui-surface-3)] px-1.5 py-0.5 text-[10px] leading-none font-semibold text-[color:var(--ui-text-muted)]">
+              +{additionalTagCount}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
+    </>
+  );
+
   return (
     <li
       className={`ui-task-row group p-3 transition-all duration-200 ease-out last:border-b-0 sm:p-4 ${
@@ -225,13 +321,13 @@ const TaskRow = memo(function TaskRow({
       }`}
     >
       <div
-        className="flex cursor-pointer items-start justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
+        className="flex cursor-pointer items-start justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)] lg:items-center"
         role="button"
         tabIndex={0}
         onClick={handleToggleCompletion}
         onKeyDown={handleItemKeyDown}
       >
-        <div className="flex min-w-0 items-start gap-3">
+        <div className="flex min-w-0 items-start gap-3 lg:items-center">
           <input
             type="checkbox"
             aria-label={t("tasks.markTask", { title: task.title })}
@@ -239,7 +335,7 @@ const TaskRow = memo(function TaskRow({
             disabled={!task.canEdit}
             onClick={(event) => event.stopPropagation()}
             onChange={handleToggleCompletion}
-            className="accent-success mt-1 h-4 w-4 rounded-[4px]"
+            className="accent-success mt-1 h-4 w-4 rounded-[4px] lg:mt-0"
           />
           <div className="min-w-0 text-left">
             <p
@@ -249,27 +345,16 @@ const TaskRow = memo(function TaskRow({
             >
               {task.title}
             </p>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--ui-text-muted)]">
-              {dueDateLabel ? <span className="ui-chip ui-chip--meta">{dueDateLabel}</span> : null}
-              <span className="ui-chip ui-chip--meta">{priorityLabel}</span>
-              <span className="ui-chip ui-chip--meta">{statusLabel}</span>
-              {task.list ? (
-                <span className="ui-chip ui-chip--meta inline-flex items-center gap-1">
-                  <span
-                    className="h-2 w-2 rounded-[3px]"
-                    style={{ backgroundColor: task.list.color ?? "#f87171" }}
-                  />
-                  {task.list.name}
-                </span>
-              ) : (
-                <span className="ui-chip ui-chip--meta">{t("tasks.noList")}</span>
-              )}
-              {firstTagName ? <span className="ui-chip ui-chip--meta">{firstTagName}</span> : null}
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--ui-text-muted)] lg:hidden">
+              {renderMetaChips()}
             </div>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-start gap-2 lg:items-center">
+          <div className="hidden max-w-[56vw] self-center flex-row-reverse flex-wrap items-center justify-start gap-2 lg:flex">
+            {renderMetaChips()}
+          </div>
           <button
             type="button"
             disabled={!task.canEdit}

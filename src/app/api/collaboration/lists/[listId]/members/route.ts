@@ -6,18 +6,58 @@ import { handleRouteError, HttpError, jsonData, parseRequestJson } from "@/lib/h
 import { prisma } from "@/lib/prisma";
 
 const createMemberSchema = z.object({
-  email: z.string().trim().email().max(255),
+  identifier: z.string().trim().min(1).max(255),
   role: z.nativeEnum(CollaboratorRole).optional(),
 });
 
-export async function GET(_request: Request, context: { params: Promise<{ listId: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ listId: string }> }) {
   try {
     const user = await requireCurrentUser();
     const { listId } = await context.params;
     const access = await getListAccess(listId, user.id);
+    const url = new URL(request.url);
+    const query = url.searchParams.get("query")?.trim().toLowerCase() ?? "";
 
     if (!access) {
       throw new HttpError(404, "List not found.");
+    }
+
+    if (query.length > 0) {
+      if (access.role !== "OWNER") {
+        throw new HttpError(403, "Only the list owner can invite collaborators.");
+      }
+
+      if (query.length < 2) {
+        return jsonData({ users: [] });
+      }
+
+      const existingMembers = await prisma.listCollaborator.findMany({
+        where: { listId },
+        select: { userId: true },
+      });
+      const excludedUserIds = [access.ownerId, ...existingMembers.map((member) => member.userId)];
+
+      const users = await prisma.user.findMany({
+        where: {
+          id: {
+            notIn: excludedUserIds,
+          },
+          username: {
+            startsWith: query,
+            mode: "insensitive",
+          },
+        },
+        orderBy: [{ username: "asc" }, { email: "asc" }],
+        take: 8,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          displayName: true,
+        },
+      });
+
+      return jsonData({ users });
     }
 
     const list = await prisma.list.findUnique({
@@ -31,6 +71,7 @@ export async function GET(_request: Request, context: { params: Promise<{ listId
         owner: {
           select: {
             id: true,
+            username: true,
             email: true,
             displayName: true,
           },
@@ -41,6 +82,7 @@ export async function GET(_request: Request, context: { params: Promise<{ listId
             user: {
               select: {
                 id: true,
+                username: true,
                 email: true,
                 displayName: true,
               },
@@ -48,6 +90,7 @@ export async function GET(_request: Request, context: { params: Promise<{ listId
             invitedBy: {
               select: {
                 id: true,
+                username: true,
                 email: true,
                 displayName: true,
               },
@@ -109,14 +152,18 @@ export async function POST(request: Request, context: { params: Promise<{ listId
     }
 
     const body = await parseRequestJson(request, createMemberSchema);
-    const email = body.email.toLowerCase();
+    const identifier = body.identifier.trim().toLowerCase();
     const role = body.role ?? CollaboratorRole.VIEWER;
-    const invitedUser = await prisma.user.findUnique({
+    const invitedUser = await prisma.user.findFirst({
       where: {
-        email,
+        OR: [
+          { email: identifier },
+          { username: identifier },
+        ],
       },
       select: {
         id: true,
+        username: true,
         email: true,
         displayName: true,
       },
@@ -151,6 +198,7 @@ export async function POST(request: Request, context: { params: Promise<{ listId
         user: {
           select: {
             id: true,
+            username: true,
             email: true,
             displayName: true,
           },
@@ -158,6 +206,7 @@ export async function POST(request: Request, context: { params: Promise<{ listId
         invitedBy: {
           select: {
             id: true,
+            username: true,
             email: true,
             displayName: true,
           },
