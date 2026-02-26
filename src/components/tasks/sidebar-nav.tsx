@@ -1,6 +1,9 @@
 "use client";
 
-import { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, memo, useEffect, useRef, useState } from "react";
+import { useT } from "@/components/settings/locale-provider";
 import { Input } from "@/components/ui/input";
 
 type SidebarNavProps = {
@@ -59,9 +62,31 @@ type SidebarNavItemProps = {
   onClick?: () => void;
 };
 
+type SidebarRouteItemProps = {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  active?: boolean;
+  collapsed: boolean;
+  onNavigate?: () => void;
+};
+
 type IconProps = {
   className?: string;
 };
+
+const sidebarItemBaseClass =
+  "group relative flex min-h-10 w-full items-center rounded-2xl border text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)] active:scale-[0.99] active:translate-y-0";
+const sidebarItemActiveClass =
+  "border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-strong)] shadow-[var(--ui-shadow-xs)]";
+const sidebarItemIdleClass =
+  "border-transparent text-[color:var(--ui-text-muted)] hover:-translate-y-[1px] hover:border-[color:var(--ui-border-soft)] hover:bg-[color:var(--ui-surface-3)] hover:text-[color:var(--ui-text-strong)] hover:shadow-[var(--ui-shadow-xs)]";
+const sidebarActionButtonClass =
+  "inline-flex items-center justify-center rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-muted)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-[color:var(--ui-border-strong)] hover:bg-[color:var(--ui-surface-1)] hover:text-[color:var(--ui-text-strong)] hover:shadow-[var(--ui-shadow-xs)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)] active:translate-y-0 active:scale-[0.98]";
+const sidebarActionButtonActiveClass =
+  "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-1)] text-[color:var(--ui-text-strong)] shadow-[var(--ui-shadow-xs)]";
+const sidebarDialogClass =
+  "border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] shadow-[var(--ui-shadow-lg)] backdrop-blur-sm";
 
 function MenuIcon({ className = "h-5 w-5" }: IconProps) {
   return (
@@ -207,7 +232,7 @@ function ClearIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
-function SidebarNavItem({
+const SidebarNavItem = memo(function SidebarNavItem({
   label,
   icon,
   count,
@@ -224,11 +249,9 @@ function SidebarNavItem({
       aria-label={label}
       aria-current={active ? "page" : undefined}
       onClick={onClick}
-      className={`group relative flex min-h-10 w-full items-center rounded-2xl border text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.99] active:translate-y-0 ${
-        active
-          ? "border-slate-200 bg-slate-100 text-slate-900 shadow-[0_8px_18px_-16px_rgb(15_23_42/0.75)]"
-          : "border-transparent text-slate-600 hover:-translate-y-[1px] hover:border-slate-200/90 hover:bg-slate-50 hover:text-slate-900 hover:shadow-[0_8px_16px_-14px_rgb(15_23_42/0.7)]"
-      } ${collapsed ? "mx-auto h-12 w-12 justify-center px-0" : "gap-3 px-3 py-2"}`}
+      className={`${sidebarItemBaseClass} ${active ? sidebarItemActiveClass : sidebarItemIdleClass} ${
+        collapsed ? "mx-auto h-12 w-12 justify-center px-0" : "gap-3 px-3 py-2"
+      }`}
     >
       <span className="relative">
         <NavIcon icon={icon} active={active} />
@@ -238,7 +261,7 @@ function SidebarNavItem({
       {collapsed ? null : <span className="min-w-0 truncate">{label}</span>}
 
       {collapsed || counterText === undefined ? null : (
-        <span className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[11px] font-semibold text-slate-500">
+        <span className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[color:var(--ui-surface-3)] px-2 text-[11px] font-semibold text-[color:var(--ui-text-muted)]">
           {counterText}
         </span>
       )}
@@ -246,11 +269,42 @@ function SidebarNavItem({
       {collapsed ? <span className="ui-rail-tooltip">{label}</span> : null}
     </button>
   );
-}
+});
+
+const SidebarRouteItem = memo(function SidebarRouteItem({
+  href,
+  label,
+  icon,
+  active = false,
+  collapsed,
+  onNavigate,
+}: SidebarRouteItemProps) {
+  return (
+    <Link
+      href={href}
+      prefetch
+      onClick={onNavigate}
+      title={collapsed ? label : undefined}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={`${sidebarItemBaseClass} ${active ? sidebarItemActiveClass : sidebarItemIdleClass} ${
+        collapsed ? "mx-auto h-12 w-12 justify-center px-0" : "gap-3 px-3 py-2"
+      }`}
+    >
+      <span className="relative">
+        <NavIcon icon={icon} active={active} />
+      </span>
+
+      {collapsed ? null : <span className="min-w-0 truncate">{label}</span>}
+
+      {collapsed ? <span className="ui-rail-tooltip">{label}</span> : null}
+    </Link>
+  );
+});
 
 function sectionLabel(label: string) {
   return (
-    <p className="px-2 text-[12px] font-semibold tracking-[0.12em] text-slate-400" aria-hidden>
+    <p className="px-2 text-[12px] font-semibold tracking-[0.12em] text-[color:var(--ui-text-soft)]" aria-hidden>
       {label}
     </p>
   );
@@ -267,8 +321,8 @@ function NavIcon({ icon, active = false, className = "" }: NavIconProps) {
     <span
       className={`relative grid h-10 w-10 place-items-center rounded-xl transition-all duration-200 ease-out ${
         active
-          ? "bg-white text-slate-900 shadow-[0_8px_16px_-12px_rgb(15_23_42/0.9)]"
-          : "text-slate-500 group-hover:text-slate-700"
+          ? "bg-[color:var(--ui-surface-1)] text-[color:var(--ui-text-strong)] shadow-[var(--ui-shadow-xs)]"
+          : "text-[color:var(--ui-text-soft)] group-hover:text-[color:var(--ui-text-muted)]"
       } ${className}`}
     >
       <span className="pointer-events-none h-5 w-5 shrink-0 [&_svg]:h-5 [&_svg]:w-5 [&_svg]:shrink-0">
@@ -286,7 +340,7 @@ type NavBadgeProps = {
 function NavBadge({ value, className = "" }: NavBadgeProps) {
   return (
     <span
-      className={`absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-slate-900 px-1 text-[11px] font-semibold leading-none text-white ${className}`}
+      className={`absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-[color:var(--primary-strong)] px-1 text-[11px] font-semibold leading-none text-white ${className}`}
     >
       {value}
     </span>
@@ -297,29 +351,84 @@ function SidebarSectionDivider({ collapsed }: { collapsed: boolean }) {
   return (
     <div
       aria-hidden
-      className={collapsed ? "my-3 mx-auto h-px w-10 bg-black/10" : "my-5 h-px w-full bg-black/10"}
+      className={
+        collapsed
+          ? "my-3 mx-auto h-px w-10 bg-[color:var(--ui-border-soft)]"
+          : "my-5 h-px w-full bg-[color:var(--ui-border-soft)]"
+      }
     />
   );
 }
 
 const tagFallbackPalette = ["#10b981", "#ef4444", "#3b82f6"] as const;
+const darkTagTextHex = "#0f172a";
+const lightTagTextHex = "#f8fafc";
 
 function getTagChipColor(color: string | null, index: number) {
   return color ?? tagFallbackPalette[index % tagFallbackPalette.length];
 }
 
-function isLightTagColor(color: string) {
+function parseHexToRgb(color: string) {
   const normalized = color.replace("#", "");
   const hex = normalized.length === 3 ? normalized.split("").map((value) => `${value}${value}`).join("") : normalized;
   if (!/^[\da-fA-F]{6}$/.test(hex)) {
-    return false;
+    return null;
   }
 
-  const red = Number.parseInt(hex.slice(0, 2), 16);
-  const green = Number.parseInt(hex.slice(2, 4), 16);
-  const blue = Number.parseInt(hex.slice(4, 6), 16);
-  const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
-  return luminance > 0.62;
+  return {
+    red: Number.parseInt(hex.slice(0, 2), 16),
+    green: Number.parseInt(hex.slice(2, 4), 16),
+    blue: Number.parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+function srgbToLinearChannel(value: number) {
+  const normalized = value / 255;
+  if (normalized <= 0.04045) {
+    return normalized / 12.92;
+  }
+  return ((normalized + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(red: number, green: number, blue: number) {
+  const r = srgbToLinearChannel(red);
+  const g = srgbToLinearChannel(green);
+  const b = srgbToLinearChannel(blue);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(backgroundHex: string, foregroundHex: string) {
+  const background = parseHexToRgb(backgroundHex);
+  const foreground = parseHexToRgb(foregroundHex);
+  if (!background || !foreground) {
+    return 1;
+  }
+  const backgroundLuminance = relativeLuminance(background.red, background.green, background.blue);
+  const foregroundLuminance = relativeLuminance(foreground.red, foreground.green, foreground.blue);
+  const lighter = Math.max(backgroundLuminance, foregroundLuminance);
+  const darker = Math.min(backgroundLuminance, foregroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function getTagTextColor(backgroundHex: string) {
+  const darkContrast = contrastRatio(backgroundHex, darkTagTextHex);
+  const lightContrast = contrastRatio(backgroundHex, lightTagTextHex);
+  return lightContrast >= darkContrast ? lightTagTextHex : darkTagTextHex;
+}
+
+function darkenHexColor(color: string, amount = 0.18) {
+  const parsed = parseHexToRgb(color);
+  if (!parsed) {
+    return color;
+  }
+
+  const factor = Math.min(Math.max(1 - amount, 0), 1);
+  const red = Math.round(parsed.red * factor);
+  const green = Math.round(parsed.green * factor);
+  const blue = Math.round(parsed.blue * factor);
+  return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}${blue
+    .toString(16)
+    .padStart(2, "0")}`;
 }
 
 const focusableSelector = [
@@ -371,7 +480,7 @@ function handleCreatorKeyDown(event: ReactKeyboardEvent<HTMLElement>, onClose: (
   trapFocusWithin(event);
 }
 
-export function SidebarNav({
+export const SidebarNav = memo(function SidebarNav({
   collapsed,
   totalCount,
   todayCount,
@@ -406,6 +515,8 @@ export function SidebarNav({
   onCreateTagSubmit,
   mobile = false,
 }: SidebarNavProps) {
+  const pathname = usePathname();
+  const t = useT();
   const listCreateButtonRef = useRef<HTMLButtonElement | null>(null);
   const tagCreateButtonRef = useRef<HTMLButtonElement | null>(null);
   const listInputRef = useRef<HTMLInputElement | null>(null);
@@ -462,18 +573,23 @@ export function SidebarNav({
   };
   const shouldUseSheetCreator = mobile || !isDesktopDialogViewport;
   const shouldUseSideSheet = !mobile || isLandscapeViewport;
+  const isTasksRoute = pathname === "/" || pathname === "/tasks";
+  const isCalendarRoute = pathname === "/calendar" || pathname.startsWith("/calendar/");
+  const handleRouteNavigate = mobile ? onToggle : undefined;
 
   return (
     <div className={`flex h-full flex-col ${collapsed ? "px-2.5 py-4" : "px-4 py-4 sm:px-5 sm:py-5"}`}>
       <div className={`mb-4 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
         {collapsed ? null : (
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-[40px]">Menu</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-[color:var(--ui-text-strong)] sm:text-[40px]">
+            {t("sidebar.menu")}
+          </h2>
         )}
         <button
           type="button"
-          aria-label={mobile ? "Cerrar menu" : collapsed ? "Expandir menu" : "Colapsar menu"}
+          aria-label={mobile ? t("sidebar.closeMenu") : collapsed ? t("sidebar.expandMenu") : t("sidebar.collapseMenu")}
           onClick={onToggle}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-[0_12px_20px_-16px_rgb(15_23_42/0.9)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:bg-slate-50 hover:text-slate-900 hover:shadow-[0_14px_22px_-16px_rgb(15_23_42/0.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:translate-y-0 active:scale-[0.99]"
+          className={`${sidebarActionButtonClass} h-11 w-11 rounded-2xl`}
         >
           {mobile ? <CloseIcon /> : <MenuIcon />}
         </button>
@@ -482,9 +598,30 @@ export function SidebarNav({
 
       <div className={`todo-sidebar-scroll flex-1 overflow-y-auto overscroll-contain ${mobile ? "pt-2" : ""}`}>
         <section className="space-y-1">
-          {collapsed ? null : sectionLabel("TASKS")}
+          {collapsed ? null : sectionLabel(t("sidebar.main"))}
+          <SidebarRouteItem
+            href="/"
+            label={t("nav.tasks")}
+            icon={<TasksIcon />}
+            active={isTasksRoute}
+            collapsed={collapsed}
+            onNavigate={handleRouteNavigate}
+          />
+          <SidebarRouteItem
+            href="/calendar"
+            label={t("nav.calendar")}
+            icon={<CalendarIcon />}
+            active={isCalendarRoute}
+            collapsed={collapsed}
+            onNavigate={handleRouteNavigate}
+          />
+        </section>
+        <SidebarSectionDivider collapsed={collapsed} />
+
+        <section className="space-y-1">
+          {collapsed ? null : sectionLabel(t("sidebar.tasks"))}
           <SidebarNavItem
-            label="All Tasks"
+            label={t("sidebar.allTasks")}
             icon={<TasksIcon />}
             count={resolvedCounts.all}
             collapsed={collapsed}
@@ -492,7 +629,7 @@ export function SidebarNav({
             onClick={() => onSelectView?.("all")}
           />
           <SidebarNavItem
-            label="Pending"
+            label={t("sidebar.pending")}
             icon={<PendingIcon />}
             count={resolvedCounts.pending}
             collapsed={collapsed}
@@ -500,7 +637,7 @@ export function SidebarNav({
             onClick={() => onSelectView?.("pending")}
           />
           <SidebarNavItem
-            label="Completed"
+            label={t("sidebar.completed")}
             icon={<CompletedIcon />}
             count={resolvedCounts.completed}
             collapsed={collapsed}
@@ -508,7 +645,7 @@ export function SidebarNav({
             onClick={() => onSelectView?.("completed")}
           />
           <SidebarNavItem
-            label="Today"
+            label={t("sidebar.today")}
             icon={<CalendarIcon />}
             count={resolvedCounts.today}
             collapsed={collapsed}
@@ -516,7 +653,7 @@ export function SidebarNav({
             onClick={() => onSelectView?.("today")}
           />
           <SidebarNavItem
-            label="Upcoming"
+            label={t("sidebar.upcoming")}
             icon={<UpcomingIcon />}
             count={resolvedCounts.upcoming}
             collapsed={collapsed}
@@ -529,16 +666,16 @@ export function SidebarNav({
         <section className="space-y-1.5">
           {!collapsed ? (
             <div className="flex items-center justify-between px-2">
-              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500" aria-hidden>
-                LISTS
+              <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)]" aria-hidden>
+                {t("sidebar.lists")}
               </p>
               <div className="flex items-center gap-1">
                 {hasListFilter ? (
                   <button
                     type="button"
                     onClick={onClearListFilter}
-                    aria-label="Quitar filtro de listas"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 bg-white/70 text-slate-500 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-black/20 hover:bg-white hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 active:translate-y-0 active:scale-[0.98]"
+                    aria-label={t("sidebar.clearListFilter")}
+                    className={`${sidebarActionButtonClass} h-8 w-8 rounded-lg`}
                   >
                     <ClearIcon />
                   </button>
@@ -547,10 +684,10 @@ export function SidebarNav({
                   ref={listCreateButtonRef}
                   type="button"
                   onClick={onRequestCreateList}
-                  aria-label="Nueva lista"
+                  aria-label={t("sidebar.newList")}
                   aria-pressed={isListCreatorOpen}
-                  className={`group relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white/70 text-slate-600 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-black/20 hover:bg-white hover:text-slate-900 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 active:translate-y-0 active:scale-[0.98] ${
-                    isListCreatorOpen ? "border-black/20 bg-white text-slate-900 shadow-sm" : ""
+                  className={`${sidebarActionButtonClass} group relative h-10 w-10 ${
+                    isListCreatorOpen ? sidebarActionButtonActiveClass : ""
                   }`}
                 >
                   <span className="pointer-events-none h-5 w-5 shrink-0">
@@ -561,9 +698,9 @@ export function SidebarNav({
             </div>
           ) : null}
           {lists.length === 0 && !collapsed ? (
-            <p className="px-2 text-xs text-slate-400">Sin listas</p>
+            <p className="px-2 text-xs text-[color:var(--ui-text-soft)]">{t("sidebar.noLists")}</p>
           ) : (
-            lists.slice(0, 5).map((list) => {
+            lists.map((list) => {
               const isActive = activeListId === list.id;
               return (
                 <button
@@ -573,16 +710,14 @@ export function SidebarNav({
                   aria-label={list.name}
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => onSelectList?.(isActive ? null : list.id)}
-                  className={`group flex min-h-11 w-full items-center rounded-2xl border text-sm transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:translate-y-0 active:scale-[0.99] ${
-                    isActive
-                      ? "border-slate-200 bg-slate-100 text-slate-900 shadow-[0_8px_16px_-14px_rgb(15_23_42/0.7)]"
-                      : "border-transparent text-slate-700 hover:-translate-y-[1px] hover:border-slate-200/90 hover:bg-slate-50 hover:shadow-[0_8px_16px_-14px_rgb(15_23_42/0.7)]"
-                  } ${collapsed ? "mx-auto h-12 w-12 justify-center px-0" : "gap-3 px-3 py-2.5"}`}
+                  className={`${sidebarItemBaseClass} ${isActive ? sidebarItemActiveClass : sidebarItemIdleClass} ${
+                    collapsed ? "mx-auto h-12 w-12 justify-center px-0" : "gap-3 px-3 py-2.5"
+                  }`}
                 >
                   <span className="relative">
                     <NavIcon icon={<FolderIcon />} active={isActive} />
                     <span
-                      className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full ring-2 ring-white"
+                      className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full ring-2 ring-[color:var(--ui-surface-1)]"
                       style={{ backgroundColor: list.color ?? "#f87171" }}
                       aria-hidden
                     />
@@ -593,7 +728,7 @@ export function SidebarNav({
                   {collapsed ? null : (
                     <>
                       <span className="min-w-0 truncate">{list.name}</span>
-                      <span className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[11px] font-semibold text-slate-500">
+                      <span className="ml-auto inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[color:var(--ui-surface-3)] px-2 text-[11px] font-semibold text-[color:var(--ui-text-muted)]">
                         {list.count}
                       </span>
                     </>
@@ -609,17 +744,17 @@ export function SidebarNav({
                 ref={listCreateButtonRef}
                 type="button"
                 onClick={onRequestCreateList}
-                aria-label="Nueva lista"
+                aria-label={t("sidebar.newList")}
                 aria-pressed={isListCreatorOpen}
-                title="New list"
-                className={`group relative inline-flex items-center justify-center rounded-xl border border-black/10 bg-white/70 text-slate-600 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-black/20 hover:bg-white hover:text-slate-900 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 active:translate-y-0 active:scale-[0.98] ${
-                  isListCreatorOpen ? "border-black/20 bg-white text-slate-900 shadow-sm" : ""
+                title={t("sidebar.newList")}
+                className={`${sidebarActionButtonClass} group relative h-12 w-12 ${
+                  isListCreatorOpen ? sidebarActionButtonActiveClass : ""
                 } h-12 w-12`}
               >
                 <span className="pointer-events-none h-5 w-5 shrink-0">
                   <PlusIcon />
                 </span>
-                <span className="ui-rail-tooltip">New list</span>
+                <span className="ui-rail-tooltip">{t("sidebar.newList")}</span>
               </button>
             </div>
           ) : null}
@@ -629,16 +764,16 @@ export function SidebarNav({
         <section className="space-y-2">
           {!collapsed ? (
             <div className="flex items-center justify-between px-2">
-              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500" aria-hidden>
-                TAGS
+              <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)]" aria-hidden>
+                {t("sidebar.tags")}
               </p>
               <div className="flex items-center gap-1">
                 {hasTagFilter ? (
                   <button
                     type="button"
                     onClick={onClearTagFilter}
-                    aria-label="Quitar filtro de etiquetas"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 bg-white/70 text-slate-500 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-black/20 hover:bg-white hover:text-slate-700 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 active:translate-y-0 active:scale-[0.98]"
+                    aria-label={t("sidebar.clearTagFilter")}
+                    className={`${sidebarActionButtonClass} h-8 w-8 rounded-lg`}
                   >
                     <ClearIcon />
                   </button>
@@ -647,10 +782,10 @@ export function SidebarNav({
                   ref={tagCreateButtonRef}
                   type="button"
                   onClick={onRequestCreateTag}
-                  aria-label="Nueva etiqueta"
+                  aria-label={t("sidebar.newTag")}
                   aria-pressed={isTagCreatorOpen}
-                  className={`group relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white/70 text-slate-600 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-black/20 hover:bg-white hover:text-slate-900 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 active:translate-y-0 active:scale-[0.98] ${
-                    isTagCreatorOpen ? "border-black/20 bg-white text-slate-900 shadow-sm" : ""
+                  className={`${sidebarActionButtonClass} group relative h-10 w-10 ${
+                    isTagCreatorOpen ? sidebarActionButtonActiveClass : ""
                   }`}
                 >
                   <span className="pointer-events-none h-5 w-5 shrink-0">
@@ -661,13 +796,18 @@ export function SidebarNav({
             </div>
           ) : null}
           <div className={`flex flex-wrap gap-2 ${collapsed ? "justify-center" : ""}`}>
-            {tags.slice(0, 4).map((tag, index) => (
+            {tags.map((tag, index) => (
               (() => {
                 const isActive = activeTagId === tag.id;
-                const chipColor = getTagChipColor(tag.color, index);
-                const isLightChip = isLightTagColor(chipColor);
-                const chipTextClass = isLightChip ? "text-slate-900" : "text-white";
-                const chipBorderClass = isLightChip ? "border-black/10" : "border-white/30";
+                const baseChipColor = getTagChipColor(tag.color, index);
+                const chipColor = isActive ? darkenHexColor(baseChipColor, 0.2) : baseChipColor;
+                const tagTextColor = isActive ? lightTagTextHex : getTagTextColor(chipColor);
+                const useLightText = tagTextColor === lightTagTextHex;
+                const chipBorderClass = isActive
+                  ? "border-white/45"
+                  : useLightText
+                    ? "border-white/30"
+                    : "border-black/15";
                 return (
                   <button
                     key={tag.id}
@@ -676,14 +816,14 @@ export function SidebarNav({
                     title={collapsed ? tag.name : undefined}
                     aria-current={isActive ? "page" : undefined}
                     onClick={() => onSelectTag?.(isActive ? null : tag.id)}
-                    className={`group inline-flex items-center rounded-full border text-sm font-medium transition-all duration-200 ease-out hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:translate-y-0 active:scale-[0.99] ${
+                    className={`group inline-flex items-center rounded-full border text-[13px] font-semibold tracking-[0.01em] transition-all duration-200 ease-out hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)] active:translate-y-0 active:scale-[0.99] ${
                       isActive
-                        ? `${chipBorderClass} shadow-sm`
-                        : `${chipBorderClass} shadow-sm hover:brightness-[0.98]`
-                    } ${collapsed ? "h-12 w-12 justify-center px-0" : "gap-2 px-3 py-1.5"}`}
+                        ? `${chipBorderClass} shadow-[var(--ui-shadow-xs)]`
+                        : `${chipBorderClass} shadow-sm hover:brightness-[0.99]`
+                    } ${collapsed ? "h-12 w-12 justify-center px-0" : "h-10 max-w-full min-w-0 gap-2.5 px-3.5"}`}
                     style={{
                       backgroundColor: chipColor,
-                      color: isLightChip ? "#0f172a" : "#ffffff",
+                      color: tagTextColor,
                     }}
                   >
                     {collapsed ? (
@@ -692,18 +832,25 @@ export function SidebarNav({
                         active={isActive}
                         className={
                           isActive
-                            ? `h-10 w-10 shadow-none ${isLightChip ? "bg-black/5 text-slate-900" : "bg-white/20 text-white"}`
+                            ? "h-10 w-10 shadow-none bg-white/18 text-white"
                             : `h-10 w-10 shadow-none ${
-                                isLightChip
-                                  ? "bg-transparent text-slate-900 group-hover:bg-black/5 group-hover:text-slate-900"
-                                  : "bg-white/10 text-white group-hover:bg-white/15 group-hover:text-white"
+                                useLightText
+                                  ? "bg-transparent text-white group-hover:bg-white/14 group-hover:text-white"
+                                  : "bg-transparent text-[color:var(--ui-text-strong)] group-hover:bg-black/6 group-hover:text-[color:var(--ui-text-strong)]"
                               }`
                         }
                       />
                     ) : (
                       <>
-                        <TagIcon className={`h-4 w-4 shrink-0 opacity-90 ${chipTextClass}`} />
-                        <span className={`leading-none ${chipTextClass}`}>{tag.name}</span>
+                        <span
+                          aria-hidden
+                          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full ${
+                            useLightText ? "bg-white/18" : "bg-black/8"
+                          }`}
+                        >
+                          <TagIcon className="h-3.5 w-3.5 shrink-0 opacity-95" />
+                        </span>
+                        <span className="max-w-[172px] truncate leading-none">{tag.name}</span>
                       </>
                     )}
                     {collapsed ? <span className="ui-rail-tooltip">{tag.name}</span> : null}
@@ -718,17 +865,17 @@ export function SidebarNav({
                 ref={tagCreateButtonRef}
                 type="button"
                 onClick={onRequestCreateTag}
-                aria-label="Nueva etiqueta"
+                aria-label={t("sidebar.newTag")}
                 aria-pressed={isTagCreatorOpen}
-                title="New tag"
-                className={`group relative inline-flex h-12 w-12 items-center justify-center rounded-xl border border-black/10 bg-white/70 text-slate-600 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-black/20 hover:bg-white hover:text-slate-900 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 active:translate-y-0 active:scale-[0.98] ${
-                  isTagCreatorOpen ? "border-black/20 bg-white text-slate-900 shadow-sm" : ""
+                title={t("sidebar.newTag")}
+                className={`${sidebarActionButtonClass} group relative h-12 w-12 ${
+                  isTagCreatorOpen ? sidebarActionButtonActiveClass : ""
                 }`}
               >
                 <span className="pointer-events-none h-5 w-5 shrink-0">
                   <PlusIcon />
                 </span>
-                <span className="ui-rail-tooltip">New tag</span>
+                <span className="ui-rail-tooltip">{t("sidebar.newTag")}</span>
               </button>
             </div>
           ) : null}
@@ -739,7 +886,7 @@ export function SidebarNav({
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6" role="presentation">
           <button
             type="button"
-            aria-label="Cerrar creación de lista"
+            aria-label={t("sidebar.closeListCreation")}
             className="ui-overlay-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
             onClick={closeListCreatorAndFocusButton}
           />
@@ -750,22 +897,25 @@ export function SidebarNav({
             aria-describedby="create-list-description"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => handleCreatorKeyDown(event, closeListCreatorAndFocusButton)}
-            className="ui-dialog-scale-in relative z-[1] w-full max-w-lg rounded-3xl border border-slate-200/90 bg-white/95 p-6 shadow-[0_34px_80px_-38px_rgb(15_23_42/0.72)] backdrop-blur-sm transition-all duration-200 ease-out md:p-7"
+            className={`ui-dialog-scale-in relative z-[1] w-full max-w-lg rounded-3xl p-6 transition-all duration-200 ease-out md:p-7 ${sidebarDialogClass}`}
           >
             <button
               type="button"
               onClick={closeListCreatorAndFocusButton}
-              aria-label="Cancelar nueva lista"
-              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white/80 text-slate-600 transition-all duration-200 ease-out hover:border-black/20 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.98] md:right-5 md:top-5"
+              aria-label={t("sidebar.cancelNewList")}
+              className={`${sidebarActionButtonClass} absolute right-4 top-4 h-9 w-9 md:right-5 md:top-5`}
             >
               <ClearIcon className="h-4 w-4" />
             </button>
             <div className="pr-11">
-              <h3 id="create-list-title" className="text-2xl font-semibold tracking-tight text-slate-900">
-                Create new list
+              <h3
+                id="create-list-title"
+                className="text-2xl font-semibold tracking-tight text-[color:var(--ui-text-strong)]"
+              >
+                {t("sidebar.createListTitle")}
               </h3>
-              <p id="create-list-description" className="mt-1.5 text-sm text-slate-500">
-                Give your list a clear name and choose a color to recognize it quickly.
+              <p id="create-list-description" className="mt-1.5 text-sm text-[color:var(--ui-text-muted)]">
+                {t("sidebar.createListDescription")}
               </p>
             </div>
             <form onSubmit={onCreateListSubmit} aria-busy={isCreatingDisabled} className="mt-6 space-y-5">
@@ -773,18 +923,18 @@ export function SidebarNav({
                 ref={listInputRef}
                 value={listDraftName}
                 onChange={(event) => onListDraftNameChange?.(event.target.value)}
-                placeholder="List name"
-                className="h-11 min-h-11 rounded-xl border border-black/10 bg-white/70 px-3.5 text-base"
+                placeholder={t("sidebar.listNamePlaceholder")}
+                className="ui-field h-11 min-h-11 rounded-xl px-3.5 text-base"
               />
               <div className="flex flex-wrap items-end justify-between gap-3">
-                <label className="inline-flex items-center gap-2.5 text-sm font-medium text-slate-700">
-                  <span>Color</span>
+                <label className="inline-flex items-center gap-2.5 text-sm font-medium text-[color:var(--ui-text-muted)]">
+                  <span>{t("sidebar.color")}</span>
                   <input
                     type="color"
                     value={listDraftColor}
                     onChange={(event) => onListDraftColorChange?.(event.target.value)}
-                    className="h-11 w-14 cursor-pointer rounded-xl border border-black/10 bg-white p-1"
-                    aria-label="Color de lista"
+                    className="h-11 w-14 cursor-pointer rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-1"
+                    aria-label={t("sidebar.color")}
                   />
                 </label>
                 <div className="ml-auto flex items-center gap-2">
@@ -793,14 +943,14 @@ export function SidebarNav({
                     onClick={closeListCreatorAndFocusButton}
                     className="ui-btn ui-btn--secondary h-11 min-h-11 rounded-xl px-4 text-sm"
                   >
-                    Cancel
+                    {t("sidebar.cancel")}
                   </button>
                   <button
                     type="submit"
                     disabled={isCreatingDisabled || !listDraftName.trim()}
                     className="ui-btn ui-btn--primary h-11 min-h-11 rounded-xl px-5 text-sm"
                   >
-                    Create
+                    {t("sidebar.create")}
                   </button>
                 </div>
               </div>
@@ -813,7 +963,7 @@ export function SidebarNav({
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6" role="presentation">
           <button
             type="button"
-            aria-label="Cerrar creación de etiqueta"
+            aria-label={t("sidebar.closeTagCreation")}
             className="ui-overlay-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
             onClick={closeTagCreatorAndFocusButton}
           />
@@ -824,22 +974,25 @@ export function SidebarNav({
             aria-describedby="create-tag-description"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => handleCreatorKeyDown(event, closeTagCreatorAndFocusButton)}
-            className="ui-dialog-scale-in relative z-[1] w-full max-w-lg rounded-3xl border border-slate-200/90 bg-white/95 p-6 shadow-[0_34px_80px_-38px_rgb(15_23_42/0.72)] backdrop-blur-sm transition-all duration-200 ease-out md:p-7"
+            className={`ui-dialog-scale-in relative z-[1] w-full max-w-lg rounded-3xl p-6 transition-all duration-200 ease-out md:p-7 ${sidebarDialogClass}`}
           >
             <button
               type="button"
               onClick={closeTagCreatorAndFocusButton}
-              aria-label="Cancelar nueva etiqueta"
-              className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white/80 text-slate-600 transition-all duration-200 ease-out hover:border-black/20 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.98] md:right-5 md:top-5"
+              aria-label={t("sidebar.cancelNewTag")}
+              className={`${sidebarActionButtonClass} absolute right-4 top-4 h-9 w-9 md:right-5 md:top-5`}
             >
               <ClearIcon className="h-4 w-4" />
             </button>
             <div className="pr-11">
-              <h3 id="create-tag-title" className="text-2xl font-semibold tracking-tight text-slate-900">
-                Create new tag
+              <h3
+                id="create-tag-title"
+                className="text-2xl font-semibold tracking-tight text-[color:var(--ui-text-strong)]"
+              >
+                {t("sidebar.createTagTitle")}
               </h3>
-              <p id="create-tag-description" className="mt-1.5 text-sm text-slate-500">
-                Add a short label and color so you can categorize tasks faster.
+              <p id="create-tag-description" className="mt-1.5 text-sm text-[color:var(--ui-text-muted)]">
+                {t("sidebar.createTagDescription")}
               </p>
             </div>
             <form onSubmit={onCreateTagSubmit} aria-busy={isCreatingDisabled} className="mt-6 space-y-5">
@@ -847,18 +1000,18 @@ export function SidebarNav({
                 ref={tagInputRef}
                 value={tagDraftName}
                 onChange={(event) => onTagDraftNameChange?.(event.target.value)}
-                placeholder="Tag name"
-                className="h-11 min-h-11 rounded-xl border border-black/10 bg-white/70 px-3.5 text-base"
+                placeholder={t("sidebar.tagNamePlaceholder")}
+                className="ui-field h-11 min-h-11 rounded-xl px-3.5 text-base"
               />
               <div className="flex flex-wrap items-end justify-between gap-3">
-                <label className="inline-flex items-center gap-2.5 text-sm font-medium text-slate-700">
-                  <span>Color</span>
+                <label className="inline-flex items-center gap-2.5 text-sm font-medium text-[color:var(--ui-text-muted)]">
+                  <span>{t("sidebar.color")}</span>
                   <input
                     type="color"
                     value={tagDraftColor}
                     onChange={(event) => onTagDraftColorChange?.(event.target.value)}
-                    className="h-11 w-14 cursor-pointer rounded-xl border border-black/10 bg-white p-1"
-                    aria-label="Color de etiqueta"
+                    className="h-11 w-14 cursor-pointer rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-1"
+                    aria-label={t("sidebar.color")}
                   />
                 </label>
                 <div className="ml-auto flex items-center gap-2">
@@ -867,14 +1020,14 @@ export function SidebarNav({
                     onClick={closeTagCreatorAndFocusButton}
                     className="ui-btn ui-btn--secondary h-11 min-h-11 rounded-xl px-4 text-sm"
                   >
-                    Cancel
+                    {t("sidebar.cancel")}
                   </button>
                   <button
                     type="submit"
                     disabled={isCreatingDisabled || !tagDraftName.trim()}
                     className="ui-btn ui-btn--accent h-11 min-h-11 rounded-xl px-5 text-sm"
                   >
-                    Create
+                    {t("sidebar.create")}
                   </button>
                 </div>
               </div>
@@ -887,7 +1040,7 @@ export function SidebarNav({
         <div className="fixed inset-0 z-[130]" role="presentation">
           <button
             type="button"
-            aria-label="Cerrar creación de lista"
+            aria-label={t("sidebar.closeListCreation")}
             className="ui-overlay-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
             onClick={closeListCreatorAndFocusButton}
           />
@@ -898,10 +1051,10 @@ export function SidebarNav({
             aria-describedby="create-list-sheet-description"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => handleCreatorKeyDown(event, closeListCreatorAndFocusButton)}
-            className={`absolute z-[1] border-slate-200/80 bg-white/95 shadow-[0_22px_56px_-36px_rgb(15_23_42/0.72)] backdrop-blur-sm transition-all duration-200 ease-out ${
+            className={`absolute z-[1] transition-all duration-200 ease-out ${sidebarDialogClass} ${
               shouldUseSideSheet
-                ? "ui-sheet-in-right inset-y-0 right-0 h-full w-full max-w-md border-l"
-                : "ui-sheet-in-up inset-0 h-full w-full border-t"
+                ? "ui-sheet-in-right inset-y-0 right-0 h-full w-full max-w-md border-l border-[color:var(--ui-border-soft)]"
+                : "ui-sheet-in-up inset-0 h-full w-full border-t border-[color:var(--ui-border-soft)]"
             }`}
           >
             <div className="flex h-full flex-col overflow-y-auto px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))] sm:px-6 sm:pt-5">
@@ -909,19 +1062,19 @@ export function SidebarNav({
                 <div>
                   <h3
                     id="create-list-sheet-title"
-                    className="text-2xl font-semibold tracking-tight text-slate-900"
+                    className="text-2xl font-semibold tracking-tight text-[color:var(--ui-text-strong)]"
                   >
-                    Create new list
+                    {t("sidebar.createListTitle")}
                   </h3>
-                  <p id="create-list-sheet-description" className="mt-1.5 text-sm text-slate-500">
-                    Add a list name and color to keep your tasks organized.
+                  <p id="create-list-sheet-description" className="mt-1.5 text-sm text-[color:var(--ui-text-muted)]">
+                    {t("sidebar.createListDescription")}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={closeListCreatorAndFocusButton}
-                  aria-label="Cancelar nueva lista"
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-white/80 text-slate-600 transition-all duration-200 ease-out hover:border-black/20 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.98]"
+                  aria-label={t("sidebar.cancelNewList")}
+                  className={`${sidebarActionButtonClass} h-10 w-10 shrink-0`}
                 >
                   <ClearIcon className="h-4 w-4" />
                 </button>
@@ -935,17 +1088,17 @@ export function SidebarNav({
                   ref={listInputRef}
                   value={listDraftName}
                   onChange={(event) => onListDraftNameChange?.(event.target.value)}
-                  placeholder="List name"
-                  className="h-11 min-h-11 rounded-xl border border-black/10 bg-white/70 px-3.5 text-base"
+                  placeholder={t("sidebar.listNamePlaceholder")}
+                  className="ui-field h-11 min-h-11 rounded-xl px-3.5 text-base"
                 />
-                <label className="inline-flex w-fit items-center gap-2.5 text-sm font-medium text-slate-700">
-                  <span>Color</span>
+                <label className="inline-flex w-fit items-center gap-2.5 text-sm font-medium text-[color:var(--ui-text-muted)]">
+                  <span>{t("sidebar.color")}</span>
                   <input
                     type="color"
                     value={listDraftColor}
                     onChange={(event) => onListDraftColorChange?.(event.target.value)}
-                    className="h-11 w-14 cursor-pointer rounded-xl border border-black/10 bg-white p-1"
-                    aria-label="Color de lista"
+                    className="h-11 w-14 cursor-pointer rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-1"
+                    aria-label={t("sidebar.color")}
                   />
                 </label>
                 <div className={`mt-auto grid grid-cols-1 gap-2 ${shouldUseSideSheet ? "sm:grid-cols-2" : ""}`}>
@@ -954,14 +1107,14 @@ export function SidebarNav({
                     onClick={closeListCreatorAndFocusButton}
                     className="ui-btn ui-btn--secondary h-11 min-h-11 w-full rounded-xl px-4 text-sm"
                   >
-                    Cancel
+                    {t("sidebar.cancel")}
                   </button>
                   <button
                     type="submit"
                     disabled={isCreatingDisabled || !listDraftName.trim()}
                     className="ui-btn ui-btn--primary h-11 min-h-11 w-full rounded-xl px-5 text-sm"
                   >
-                    Create
+                    {t("sidebar.create")}
                   </button>
                 </div>
               </form>
@@ -974,7 +1127,7 @@ export function SidebarNav({
         <div className="fixed inset-0 z-[130]" role="presentation">
           <button
             type="button"
-            aria-label="Cerrar creación de etiqueta"
+            aria-label={t("sidebar.closeTagCreation")}
             className="ui-overlay-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
             onClick={closeTagCreatorAndFocusButton}
           />
@@ -985,27 +1138,30 @@ export function SidebarNav({
             aria-describedby="create-tag-sheet-description"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => handleCreatorKeyDown(event, closeTagCreatorAndFocusButton)}
-            className={`absolute z-[1] border-slate-200/80 bg-white/95 shadow-[0_22px_56px_-36px_rgb(15_23_42/0.72)] backdrop-blur-sm transition-all duration-200 ease-out ${
+            className={`absolute z-[1] transition-all duration-200 ease-out ${sidebarDialogClass} ${
               shouldUseSideSheet
-                ? "ui-sheet-in-right inset-y-0 right-0 h-full w-full max-w-md border-l"
-                : "ui-sheet-in-up inset-0 h-full w-full border-t"
+                ? "ui-sheet-in-right inset-y-0 right-0 h-full w-full max-w-md border-l border-[color:var(--ui-border-soft)]"
+                : "ui-sheet-in-up inset-0 h-full w-full border-t border-[color:var(--ui-border-soft)]"
             }`}
           >
             <div className="flex h-full flex-col overflow-y-auto px-5 pb-[max(16px,env(safe-area-inset-bottom))] pt-[max(16px,env(safe-area-inset-top))] sm:px-6 sm:pt-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 id="create-tag-sheet-title" className="text-2xl font-semibold tracking-tight text-slate-900">
-                    Create new tag
+                  <h3
+                    id="create-tag-sheet-title"
+                    className="text-2xl font-semibold tracking-tight text-[color:var(--ui-text-strong)]"
+                  >
+                    {t("sidebar.createTagTitle")}
                   </h3>
-                  <p id="create-tag-sheet-description" className="mt-1.5 text-sm text-slate-500">
-                    Add a short tag and color so it is easy to spot in your task list.
+                  <p id="create-tag-sheet-description" className="mt-1.5 text-sm text-[color:var(--ui-text-muted)]">
+                    {t("sidebar.createTagDescription")}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={closeTagCreatorAndFocusButton}
-                  aria-label="Cancelar nueva etiqueta"
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-white/80 text-slate-600 transition-all duration-200 ease-out hover:border-black/20 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:scale-[0.98]"
+                  aria-label={t("sidebar.cancelNewTag")}
+                  className={`${sidebarActionButtonClass} h-10 w-10 shrink-0`}
                 >
                   <ClearIcon className="h-4 w-4" />
                 </button>
@@ -1019,17 +1175,17 @@ export function SidebarNav({
                   ref={tagInputRef}
                   value={tagDraftName}
                   onChange={(event) => onTagDraftNameChange?.(event.target.value)}
-                  placeholder="Tag name"
-                  className="h-11 min-h-11 rounded-xl border border-black/10 bg-white/70 px-3.5 text-base"
+                  placeholder={t("sidebar.tagNamePlaceholder")}
+                  className="ui-field h-11 min-h-11 rounded-xl px-3.5 text-base"
                 />
-                <label className="inline-flex w-fit items-center gap-2.5 text-sm font-medium text-slate-700">
-                  <span>Color</span>
+                <label className="inline-flex w-fit items-center gap-2.5 text-sm font-medium text-[color:var(--ui-text-muted)]">
+                  <span>{t("sidebar.color")}</span>
                   <input
                     type="color"
                     value={tagDraftColor}
                     onChange={(event) => onTagDraftColorChange?.(event.target.value)}
-                    className="h-11 w-14 cursor-pointer rounded-xl border border-black/10 bg-white p-1"
-                    aria-label="Color de etiqueta"
+                    className="h-11 w-14 cursor-pointer rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-1"
+                    aria-label={t("sidebar.color")}
                   />
                 </label>
                 <div className={`mt-auto grid grid-cols-1 gap-2 ${shouldUseSideSheet ? "sm:grid-cols-2" : ""}`}>
@@ -1038,14 +1194,14 @@ export function SidebarNav({
                     onClick={closeTagCreatorAndFocusButton}
                     className="ui-btn ui-btn--secondary h-11 min-h-11 w-full rounded-xl px-4 text-sm"
                   >
-                    Cancel
+                    {t("sidebar.cancel")}
                   </button>
                   <button
                     type="submit"
                     disabled={isCreatingDisabled || !tagDraftName.trim()}
                     className="ui-btn ui-btn--accent h-11 min-h-11 w-full rounded-xl px-5 text-sm"
                   >
-                    Create
+                    {t("sidebar.create")}
                   </button>
                 </div>
               </form>
@@ -1056,4 +1212,4 @@ export function SidebarNav({
 
     </div>
   );
-}
+});

@@ -1,10 +1,19 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { cookies } from "next/headers";
 import { TaskPriority } from "@prisma/client";
 import { CalendarTaskPill } from "@/components/calendar/calendar-task-pill";
-import { MobileNewTaskButton } from "@/components/calendar/mobile-new-task-button";
-import { SheetA11yBridge } from "@/components/calendar/sheet-a11y-bridge";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { taskAccessWhere } from "@/lib/collaboration";
+import { getServerI18n } from "@/lib/i18n/server";
+import {
+  DEFAULT_SHOW_COMPLETED_TASKS_PREFERENCE,
+  DEFAULT_WEEK_START_PREFERENCE,
+  parseShowCompletedPreference,
+  UI_SHOW_COMPLETED_COOKIE_KEY,
+  UI_WEEK_START_COOKIE_KEY,
+  type WeekStartPreference,
+} from "@/lib/preferences/ui";
 import { prisma } from "@/lib/prisma";
 
 type CalendarSearchParams = Promise<{
@@ -48,6 +57,22 @@ type CalendarTask = {
 };
 
 const calendarViews: CalendarViewMode[] = ["day", "week", "month", "year"];
+
+const MobileNewTaskButton = dynamic(
+  () => import("@/components/calendar/mobile-new-task-button").then((mod) => mod.MobileNewTaskButton),
+  {
+    loading: () => (
+      <span
+        aria-hidden
+        className="inline-flex h-10 min-w-10 animate-pulse rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-3)] px-3.5"
+      />
+    ),
+  },
+);
+
+const SheetA11yBridge = dynamic(
+  () => import("@/components/calendar/sheet-a11y-bridge").then((mod) => mod.SheetA11yBridge),
+);
 
 function parseMonthParam(value: string | undefined) {
   if (!value || !/^\d{4}-\d{2}$/.test(value)) {
@@ -174,17 +199,17 @@ function hourLabel(hour: number) {
   return `${`${hour}`.padStart(2, "0")}:00`;
 }
 
-function startOfWeek(date: Date) {
+function startOfWeek(date: Date, weekStartPreference: WeekStartPreference) {
   const normalized = new Date(date);
   normalized.setHours(0, 0, 0, 0);
   const day = normalized.getDay();
-  const offset = day === 0 ? -6 : 1 - day;
+  const offset = weekStartPreference === "sunday" ? -day : day === 0 ? -6 : 1 - day;
   normalized.setDate(normalized.getDate() + offset);
   return normalized;
 }
 
-function endOfWeek(date: Date) {
-  const start = startOfWeek(date);
+function endOfWeek(date: Date, weekStartPreference: WeekStartPreference) {
+  const start = startOfWeek(date, weekStartPreference);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   return end;
@@ -260,9 +285,18 @@ function toCalendarHref(
   return `/calendar?${params.toString()}`;
 }
 
-function getToolbarTitle(date: Date, view: CalendarViewMode) {
+function getToolbarTitle(
+  date: Date,
+  view: CalendarViewMode,
+  options: {
+    localeTag: string;
+    weekStartPreference: WeekStartPreference;
+  },
+) {
+  const { localeTag, weekStartPreference } = options;
+
   if (view === "day") {
-    return new Intl.DateTimeFormat("es-ES", {
+    return new Intl.DateTimeFormat(localeTag, {
       weekday: "long",
       day: "2-digit",
       month: "long",
@@ -271,13 +305,13 @@ function getToolbarTitle(date: Date, view: CalendarViewMode) {
   }
 
   if (view === "week") {
-    const weekStart = startOfWeek(date);
-    const weekEnd = endOfWeek(date);
-    const shortFormatter = new Intl.DateTimeFormat("es-ES", {
+    const weekStart = startOfWeek(date, weekStartPreference);
+    const weekEnd = endOfWeek(date, weekStartPreference);
+    const shortFormatter = new Intl.DateTimeFormat(localeTag, {
       day: "2-digit",
       month: "short",
     });
-    const endFormatter = new Intl.DateTimeFormat("es-ES", {
+    const endFormatter = new Intl.DateTimeFormat(localeTag, {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -286,12 +320,12 @@ function getToolbarTitle(date: Date, view: CalendarViewMode) {
   }
 
   if (view === "year") {
-    return new Intl.DateTimeFormat("es-ES", {
+    return new Intl.DateTimeFormat(localeTag, {
       year: "numeric",
     }).format(date);
   }
 
-  return new Intl.DateTimeFormat("es-ES", {
+  return new Intl.DateTimeFormat(localeTag, {
     month: "long",
     year: "numeric",
   }).format(date);
@@ -299,34 +333,34 @@ function getToolbarTitle(date: Date, view: CalendarViewMode) {
 
 function priorityTone(priority: TaskPriority) {
   if (priority === TaskPriority.URGENT) {
-    return "border-rose-200 bg-rose-50 text-rose-900";
+    return "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-400/45 dark:bg-rose-500/18 dark:text-rose-100";
   }
 
   if (priority === TaskPriority.HIGH) {
-    return "border-amber-200 bg-amber-50 text-amber-900";
+    return "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-400/45 dark:bg-amber-500/18 dark:text-amber-100";
   }
 
   if (priority === TaskPriority.MEDIUM) {
-    return "border-cyan-200 bg-cyan-50 text-cyan-900";
+    return "border-cyan-200 bg-cyan-50 text-cyan-900 dark:border-cyan-400/45 dark:bg-cyan-500/18 dark:text-cyan-100";
   }
 
-  return "border-slate-200 bg-slate-50 text-slate-700";
+  return "border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-muted)]";
 }
 
 function priorityPillTone(priority: TaskPriority) {
   if (priority === TaskPriority.URGENT) {
-    return "border-rose-200/90 bg-rose-50/95";
+    return "border-rose-200/90 bg-rose-50/95 dark:border-rose-400/45 dark:bg-rose-500/16";
   }
 
   if (priority === TaskPriority.HIGH) {
-    return "border-amber-200/90 bg-amber-50/95";
+    return "border-amber-200/90 bg-amber-50/95 dark:border-amber-400/45 dark:bg-amber-500/16";
   }
 
   if (priority === TaskPriority.MEDIUM) {
-    return "border-cyan-200/90 bg-cyan-50/95";
+    return "border-cyan-200/90 bg-cyan-50/95 dark:border-cyan-400/45 dark:bg-cyan-500/16";
   }
 
-  return "border-slate-200/90 bg-slate-50/95";
+  return "border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)]";
 }
 
 function priorityDotTone(priority: TaskPriority) {
@@ -342,23 +376,20 @@ function priorityDotTone(priority: TaskPriority) {
     return "bg-cyan-500";
   }
 
-  return "bg-slate-500";
-}
-
-function viewLabel(view: CalendarViewMode) {
-  if (view === "day") {
-    return "Day";
-  }
-  if (view === "week") {
-    return "Week";
-  }
-  if (view === "month") {
-    return "Month";
-  }
-  return "Year";
+  return "bg-[color:var(--ui-text-muted)]";
 }
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
+  const [cookieStore, serverI18n] = await Promise.all([cookies(), getServerI18n()]);
+  const { localeTag, t } = serverI18n;
+  const cookieWeekStartPreference = cookieStore.get(UI_WEEK_START_COOKIE_KEY)?.value;
+  const weekStartPreference: WeekStartPreference =
+    cookieWeekStartPreference === "sunday" || cookieWeekStartPreference === "monday"
+      ? cookieWeekStartPreference
+      : DEFAULT_WEEK_START_PREFERENCE;
+  const cookieShowCompletedPreference = cookieStore.get(UI_SHOW_COMPLETED_COOKIE_KEY)?.value;
+  const showCompletedPreference =
+    parseShowCompletedPreference(cookieShowCompletedPreference) ?? DEFAULT_SHOW_COMPLETED_TASKS_PREFERENCE;
   const user = await requireCurrentUser();
   const resolvedParams = await searchParams;
   const resolvedView = parseViewParam(resolvedParams.view);
@@ -368,7 +399,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const currentMonthDate = new Date(resolvedDate.getFullYear(), resolvedDate.getMonth(), 1, 0, 0, 0, 0);
   const resolvedDayStart = startOfDay(resolvedDate);
   const nextDayStart = addDays(resolvedDayStart, 1);
-  const weekStartDate = startOfWeek(resolvedDate);
+  const weekStartDate = startOfWeek(resolvedDate, weekStartPreference);
   const nextWeekStart = addDays(weekStartDate, 7);
   const yearStart = new Date(resolvedDate.getFullYear(), 0, 1, 0, 0, 0, 0);
   const nextYearStart = new Date(resolvedDate.getFullYear() + 1, 0, 1, 0, 0, 0, 0);
@@ -395,12 +426,21 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     currentMonthDate.getMonth() + 1,
     0,
   ).getDate();
-  const weekdayOffset = (monthStart.getDay() + 6) % 7;
+  const weekdayOffset =
+    weekStartPreference === "sunday" ? monthStart.getDay() : (monthStart.getDay() + 6) % 7;
   const visibleCellCount = Math.ceil((weekdayOffset + daysInMonth) / 7) * 7;
   const selectedPriorityFilters = parsePriorityFilter(resolvedParams.priorities);
   const selectedListFilters = parseCsvParam(resolvedParams.lists);
   const selectedTagFilters = parseCsvParam(resolvedParams.tags);
-  const showCompletedTasks = resolvedParams.completed !== "0";
+  const showCompletedTasks =
+    resolvedParams.completed === "0"
+      ? false
+      : resolvedParams.completed === "1"
+        ? true
+        : showCompletedPreference;
+  const selectedPrioritySet = new Set(selectedPriorityFilters);
+  const selectedListSet = new Set(selectedListFilters);
+  const selectedTagSet = new Set(selectedTagFilters);
   let queryStart = monthStart;
   let queryEnd = nextMonthStart;
 
@@ -492,30 +532,31 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
   const availableLists = Array.from(availableListsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   const availableTags = Array.from(availableTagsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
-  const filteredTasks = tasks.filter((task) => {
+  const filteredTasks: typeof tasks = [];
+  for (const task of tasks) {
     if (!showCompletedTasks && task.isCompleted) {
-      return false;
+      continue;
     }
-
-    if (selectedPriorityFilters.length > 0 && !selectedPriorityFilters.includes(task.priority)) {
-      return false;
+    if (selectedPrioritySet.size > 0 && !selectedPrioritySet.has(task.priority)) {
+      continue;
     }
-
-    if (selectedListFilters.length > 0) {
-      if (!task.list || !selectedListFilters.includes(task.list.id)) {
-        return false;
+    if (selectedListSet.size > 0 && (!task.list || !selectedListSet.has(task.list.id))) {
+      continue;
+    }
+    if (selectedTagSet.size > 0) {
+      let hasMatchingTag = false;
+      for (const tagEntry of task.tags) {
+        if (selectedTagSet.has(tagEntry.tag.id)) {
+          hasMatchingTag = true;
+          break;
+        }
+      }
+      if (!hasMatchingTag) {
+        continue;
       }
     }
-
-    if (selectedTagFilters.length > 0) {
-      const taskTagIds = task.tags.map((entry) => entry.tag.id);
-      if (!selectedTagFilters.some((tagId) => taskTagIds.includes(tagId))) {
-        return false;
-      }
-    }
-
-    return true;
-  });
+    filteredTasks.push(task);
+  }
 
   const tasksByDate = new Map<string, CalendarTask[]>();
 
@@ -538,7 +579,10 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     tasksByDate.set(dateKey, byDateEntries);
   }
 
-  const toolbarTitle = getToolbarTitle(resolvedDate, resolvedView);
+  const toolbarTitle = getToolbarTitle(resolvedDate, resolvedView, {
+    localeTag,
+    weekStartPreference,
+  });
   const previousDate = shiftFocusDate(resolvedDate, resolvedView, -1);
   const nextDate = shiftFocusDate(resolvedDate, resolvedView, 1);
   const todayDate = new Date();
@@ -555,7 +599,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     resolvedDaySheetDate && isDaySheetOpen ? toDateKey(resolvedDaySheetDate) : null;
   const daySheetTasks = daySheetDateKey ? tasksByDate.get(daySheetDateKey) ?? [] : [];
   const daySheetTitle = resolvedDaySheetDate
-    ? new Intl.DateTimeFormat("es-ES", {
+    ? new Intl.DateTimeFormat(localeTag, {
         weekday: "long",
         day: "2-digit",
         month: "long",
@@ -651,46 +695,52 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     selectedListFilters.length +
     selectedTagFilters.length +
     (showCompletedTasks ? 0 : 1);
+  const viewLabelByMode: Record<CalendarViewMode, string> = {
+    day: t("calendar.view.day"),
+    week: t("calendar.view.week"),
+    month: t("calendar.view.month"),
+    year: t("calendar.view.year"),
+  };
   const listNameById = new Map(availableLists.map((list) => [list.id, list.name]));
   const tagNameById = new Map(availableTags.map((tag) => [tag.id, tag.name]));
   const priorityLabelByValue: Record<TaskPriority, string> = {
-    [TaskPriority.URGENT]: "Urgent",
-    [TaskPriority.HIGH]: "High",
-    [TaskPriority.MEDIUM]: "Medium",
-    [TaskPriority.LOW]: "Low",
+    [TaskPriority.URGENT]: t("tasks.priority.urgent"),
+    [TaskPriority.HIGH]: t("tasks.priority.high"),
+    [TaskPriority.MEDIUM]: t("tasks.priority.medium"),
+    [TaskPriority.LOW]: t("tasks.priority.low"),
   };
   const activeFilters = [
     ...selectedPriorityFilters.map((priority) => ({
       id: `priority-${priority}`,
-      label: `Priority: ${priorityLabelByValue[priority]}`,
+      label: t("calendar.priorityLabel", { priority: priorityLabelByValue[priority] }),
       href: togglePriorityHref(priority),
     })),
     ...selectedListFilters.map((listId) => ({
       id: `list-${listId}`,
-      label: `List: ${listNameById.get(listId) ?? "Selected list"}`,
+      label: t("tasks.filter.list", { name: listNameById.get(listId) ?? t("tasks.list") }),
       href: toggleListHref(listId),
     })),
     ...selectedTagFilters.map((tagId) => ({
       id: `tag-${tagId}`,
-      label: `Tag: ${tagNameById.get(tagId) ?? "Selected tag"}`,
+      label: t("tasks.filter.tag", { name: tagNameById.get(tagId) ?? t("tasks.tags") }),
       href: toggleTagHref(tagId),
     })),
     ...(!showCompletedTasks
       ? [
           {
             id: "completed-hidden",
-            label: "Status: Hide completed",
+            label: t("calendar.showCompleted"),
             href: toggleCompletedHref,
           },
         ]
       : []),
   ];
 
-  const timeFormatter = new Intl.DateTimeFormat("es-ES", {
+  const timeFormatter = new Intl.DateTimeFormat(localeTag, {
     hour: "2-digit",
     minute: "2-digit",
   });
-  const detailDateFormatter = new Intl.DateTimeFormat("es-ES", {
+  const detailDateFormatter = new Intl.DateTimeFormat(localeTag, {
     weekday: "long",
     day: "2-digit",
     month: "long",
@@ -698,24 +748,30 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     hour: "2-digit",
     minute: "2-digit",
   });
-  const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+  const weekDays = Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(localeTag, {
+      weekday: "short",
+    })
+      .format(addDays(weekStartDate, index))
+      .replace(".", ""),
+  );
   const timelineHours = Array.from({ length: 17 }, (_, index) => index + 6);
   const weekDates = Array.from({ length: 7 }, (_, index) => addDays(weekStartDate, index));
-  const weekDayLabelFormatter = new Intl.DateTimeFormat("es-ES", {
+  const weekDayLabelFormatter = new Intl.DateTimeFormat(localeTag, {
     weekday: "short",
   });
-  const weekDayNumberFormatter = new Intl.DateTimeFormat("es-ES", {
+  const weekDayNumberFormatter = new Intl.DateTimeFormat(localeTag, {
     day: "2-digit",
   });
-  const dayTitleFormatter = new Intl.DateTimeFormat("es-ES", {
+  const dayTitleFormatter = new Intl.DateTimeFormat(localeTag, {
     weekday: "long",
     day: "2-digit",
     month: "long",
   });
-  const yearMonthLabelFormatter = new Intl.DateTimeFormat("es-ES", {
+  const yearMonthLabelFormatter = new Intl.DateTimeFormat(localeTag, {
     month: "long",
   });
-  const miniWeekDays = ["L", "M", "X", "J", "V", "S", "D"];
+  const miniWeekDays = weekDays.map((dayLabel) => dayLabel.slice(0, 1).toUpperCase());
   const todayDateKey = toDateKey(todayDate);
   const isFocusedDayToday = toDateKey(resolvedDate) === todayDateKey;
   const weekAllDayTasks = new Map<string, CalendarTask[]>();
@@ -814,30 +870,30 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     return (
       <div className="flex h-full min-h-0 flex-col">
         {variant === "desktop" ? (
-          <div className="border-b border-black/10 px-4 py-4">
+          <div className="border-b border-[color:var(--ui-border-soft)] px-4 py-4">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-slate-900">Filters</p>
+              <p className="text-sm font-semibold text-[color:var(--ui-text-strong)]">{t("calendar.filters")}</p>
               {hasActiveFilters ? (
                 <Link
                   href={clearFiltersHref}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-black/10 bg-white/80 px-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-2.5 text-xs font-semibold text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                 >
                   <span aria-hidden>↺</span>
-                  Reset all
+                  {t("calendar.resetAll")}
                 </Link>
               ) : null}
             </div>
-            <p className="mt-1 text-xs text-black/45">Refine visible tasks in the current calendar view.</p>
+            <p className="mt-1 text-xs text-[color:var(--ui-text-muted)]">{t("calendar.refineHint")}</p>
             {hasActiveFilters ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {activeFilters.map((filter) => (
                   <Link
                     key={filter.id}
                     href={filter.href}
-                    className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-black/10 bg-white/80 px-2.5 text-[11px] font-medium text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                    className="inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-2.5 text-[11px] font-medium text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                   >
                     <span className="truncate">{filter.label}</span>
-                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/5 text-[11px] leading-none text-black/65">
+                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--ui-surface-3)] text-[11px] leading-none text-[color:var(--ui-text-muted)]">
                       ×
                     </span>
                   </Link>
@@ -851,14 +907,61 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           className={`flex-1 overflow-y-auto ${isSheet ? "px-4 py-4 pb-[max(16px,env(safe-area-inset-bottom))]" : "px-4 py-4"}`}
         >
           <section>
-            <p className="text-xs font-semibold tracking-wide text-black/60 uppercase">Priority</p>
+            <p className="text-xs font-semibold tracking-wide text-[color:var(--ui-text-muted)] uppercase">{t("sidebar.main")}</p>
+            <div className="mt-3 space-y-2">
+              <Link
+                href="/"
+                prefetch
+                className={`flex ${listRowHeightClass} min-w-0 items-center gap-3 rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-3 py-2 text-sm font-semibold text-[color:var(--ui-text-muted)] transition-all duration-200 ease-out hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]`}
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-[color:var(--ui-surface-3)] text-[color:var(--ui-text-muted)]" aria-hidden>
+                  <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+                    <path
+                      d="M8 6h11M8 12h11M8 18h11"
+                      stroke="currentColor"
+                      strokeWidth="1.9"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="4.5" cy="6" r="1.2" fill="currentColor" />
+                    <circle cx="4.5" cy="12" r="1.2" fill="currentColor" />
+                    <circle cx="4.5" cy="18" r="1.2" fill="currentColor" />
+                  </svg>
+                </span>
+                <span className="min-w-0 flex-1 truncate">{t("nav.tasks")}</span>
+              </Link>
+              <Link
+                href={calendarHref(resolvedDate, resolvedView)}
+                prefetch
+                aria-current="page"
+                className={`flex ${listRowHeightClass} min-w-0 items-center gap-3 rounded-xl border border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] px-3 py-2 text-sm font-semibold text-[color:var(--ui-text-strong)] ring-2 ring-[color:var(--ui-border-soft)] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]`}
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-[color:var(--primary-strong)] text-white" aria-hidden>
+                  <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none">
+                    <rect x="4" y="6" width="16" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.9" />
+                    <path
+                      d="M8 4v4M16 4v4M4 10h16"
+                      stroke="currentColor"
+                      strokeWidth="1.9"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+                <span className="min-w-0 flex-1 truncate">{t("nav.calendar")}</span>
+              </Link>
+            </div>
+          </section>
+
+          <div className={`${sectionSpacingClass} h-px bg-[color:var(--ui-border-soft)]`} aria-hidden />
+
+          <section className={sectionSpacingClass}>
+            <p className="text-xs font-semibold tracking-wide text-[color:var(--ui-text-muted)] uppercase">{t("calendar.priority")}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {(
                 [
-                  { value: TaskPriority.URGENT, label: "Urgent", dotClass: "bg-rose-500" },
-                  { value: TaskPriority.HIGH, label: "High", dotClass: "bg-amber-500" },
-                  { value: TaskPriority.MEDIUM, label: "Medium", dotClass: "bg-cyan-500" },
-                  { value: TaskPriority.LOW, label: "Low", dotClass: "bg-slate-500" },
+                  { value: TaskPriority.URGENT, label: t("tasks.priority.urgent"), dotClass: "bg-rose-500" },
+                  { value: TaskPriority.HIGH, label: t("tasks.priority.high"), dotClass: "bg-amber-500" },
+                  { value: TaskPriority.MEDIUM, label: t("tasks.priority.medium"), dotClass: "bg-cyan-500" },
+                  { value: TaskPriority.LOW, label: t("tasks.priority.low"), dotClass: "bg-[color:var(--ui-text-muted)]" },
                 ] as const
               ).map((priorityOption) => {
                 const isActive = selectedPriorityFilters.includes(priorityOption.value);
@@ -866,10 +969,10 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                   <Link
                     key={priorityOption.value}
                     href={togglePriorityHref(priorityOption.value)}
-                    className={`inline-flex ${chipHeightClass} items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 ${
+                    className={`inline-flex ${chipHeightClass} items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)] ${
                       isActive
-                        ? "border-black/20 bg-black/5 text-slate-900"
-                        : "border-black/10 bg-white/65 text-slate-700 hover:bg-black/[0.03]"
+                        ? "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] text-[color:var(--ui-text-strong)]"
+                        : "border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-muted)] hover:bg-[color:var(--ui-surface-3)]"
                     }`}
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${priorityOption.dotClass}`} aria-hidden />
@@ -882,13 +985,15 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
           <section className={sectionSpacingClass}>
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold tracking-wide text-black/60 uppercase">Lists</p>
-              <p className="text-xs font-medium text-black/40">
-                {selectedListFilters.length > 0 ? `${selectedListFilters.length} selected` : "All"}
+              <p className="text-xs font-semibold tracking-wide text-[color:var(--ui-text-muted)] uppercase">{t("sidebar.lists")}</p>
+              <p className="text-xs font-medium text-[color:var(--ui-text-soft)]">
+                {selectedListFilters.length > 0
+                  ? t("calendar.selectedCount", { count: selectedListFilters.length })
+                  : t("tasks.filter.all")}
               </p>
             </div>
             {availableLists.length === 0 ? (
-              <p className="mt-3 text-sm text-black/40">No lists available in this range.</p>
+              <p className="mt-3 text-sm text-[color:var(--ui-text-soft)]">{t("calendar.noListsRange")}</p>
             ) : (
               <div className="mt-3 space-y-2">
                 {availableLists.map((list) => {
@@ -897,10 +1002,10 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                     <Link
                       key={list.id}
                       href={toggleListHref(list.id)}
-                      className={`flex ${listRowHeightClass} min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 ${
+                      className={`flex ${listRowHeightClass} min-w-0 items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)] ${
                         isActive
-                          ? "border-black/20 bg-black/5 ring-2 ring-black/10"
-                          : "border-black/10 bg-white/55 text-slate-700 hover:bg-black/[0.03]"
+                          ? "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] ring-2 ring-[color:var(--ui-border-soft)]"
+                          : "border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-muted)] hover:bg-[color:var(--ui-surface-3)]"
                       }`}
                     >
                       <span
@@ -909,7 +1014,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1 truncate">{list.name}</span>
-                      <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold text-black/55">
+                      <span className="shrink-0 rounded-full bg-[color:var(--ui-surface-3)] px-2 py-0.5 text-xs font-semibold text-[color:var(--ui-text-muted)]">
                         {list.count}
                       </span>
                     </Link>
@@ -919,20 +1024,22 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             )}
           </section>
 
-          <div className={`${sectionSpacingClass} h-px bg-black/10`} aria-hidden />
+          <div className={`${sectionSpacingClass} h-px bg-[color:var(--ui-border-soft)]`} aria-hidden />
 
           <section className={sectionSpacingClass}>
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold tracking-wide text-black/60 uppercase">Tags</p>
-              <p className="text-xs font-medium text-black/40">
-                {selectedTagFilters.length > 0 ? `${selectedTagFilters.length} selected` : "All"}
+              <p className="text-xs font-semibold tracking-wide text-[color:var(--ui-text-muted)] uppercase">{t("sidebar.tags")}</p>
+              <p className="text-xs font-medium text-[color:var(--ui-text-soft)]">
+                {selectedTagFilters.length > 0
+                  ? t("calendar.selectedCount", { count: selectedTagFilters.length })
+                  : t("tasks.filter.all")}
               </p>
             </div>
 
             {availableTags.length === 0 ? (
-              <div className="mt-3 rounded-xl border border-dashed border-black/15 bg-white/50 px-3 py-3">
-                <p className="text-sm font-medium text-black/45">No tags available in this range.</p>
-                <p className="mt-1 text-xs text-black/35">Create a tag to filter tasks.</p>
+              <div className="mt-3 rounded-xl border border-dashed border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-3 py-3">
+                <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">{t("calendar.noTagsRange")}</p>
+                <p className="mt-1 text-xs text-[color:var(--ui-text-soft)]">{t("calendar.createTagHint")}</p>
               </div>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -942,10 +1049,10 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                     <Link
                       key={tag.id}
                       href={toggleTagHref(tag.id)}
-                      className={`inline-flex ${chipHeightClass} min-w-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60 ${
+                      className={`inline-flex ${chipHeightClass} min-w-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)] ${
                         isActive
-                          ? "border-black/20 bg-black/5 text-slate-900"
-                          : "border-black/10 bg-white/65 text-slate-700 hover:bg-black/[0.03]"
+                          ? "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] text-[color:var(--ui-text-strong)]"
+                          : "border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-muted)] hover:bg-[color:var(--ui-surface-3)]"
                       }`}
                     >
                       <span
@@ -954,7 +1061,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                         aria-hidden
                       />
                       <span className="max-w-[124px] truncate">{tag.name}</span>
-                      <span className="shrink-0 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-semibold text-black/55">
+                      <span className="shrink-0 rounded-full bg-[color:var(--ui-surface-3)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ui-text-muted)]">
                         {tag.count}
                       </span>
                     </Link>
@@ -964,25 +1071,25 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             )}
           </section>
 
-          <div className={`${sectionSpacingClass} h-px bg-black/10`} aria-hidden />
+          <div className={`${sectionSpacingClass} h-px bg-[color:var(--ui-border-soft)]`} aria-hidden />
 
           <section className={sectionSpacingClass}>
-            <p className="text-xs font-semibold tracking-wide text-black/60 uppercase">Status</p>
+            <p className="text-xs font-semibold tracking-wide text-[color:var(--ui-text-muted)] uppercase">{t("calendar.status")}</p>
             <Link
               href={toggleCompletedHref}
               role="switch"
               aria-checked={showCompletedTasks}
-              className={`mt-3 flex ${statusHeightClass} items-center justify-between rounded-xl border border-black/10 bg-white/55 px-3 transition-colors duration-200 ease-out hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60`}
+              className={`mt-3 flex ${statusHeightClass} items-center justify-between rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-3 transition-colors duration-200 ease-out hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]`}
             >
-              <span className="text-sm font-medium text-slate-700">Show completed</span>
+              <span className="text-sm font-medium text-[color:var(--ui-text-muted)]">{t("calendar.showCompleted")}</span>
               <span
                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ease-out ${
-                  showCompletedTasks ? "bg-slate-900" : "bg-slate-300"
+                  showCompletedTasks ? "bg-[color:var(--primary-strong)]" : "bg-[color:var(--ui-border-strong)]"
                 }`}
                 aria-hidden
               >
                 <span
-                  className={`h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(15,23,42,0.35)] transition-transform duration-200 ease-out ${
+                  className={`h-4 w-4 rounded-full bg-[color:var(--ui-surface-1)] shadow-[var(--ui-shadow-xs)] transition-transform duration-200 ease-out ${
                     showCompletedTasks ? "translate-x-4" : "translate-x-0.5"
                   }`}
                 />
@@ -999,27 +1106,27 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
     return (
       <aside
-        className={`min-h-0 overflow-hidden rounded-2xl border border-black/10 bg-white/85 shadow-[0_16px_32px_-24px_rgb(15_23_42/0.85)] ${
+        className={`min-h-0 overflow-hidden rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] shadow-[0_16px_32px_-24px_rgb(15_23_42/0.85)] ${
           viewport === "mobile" ? "mt-2" : "h-full"
         }`}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-black/10 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ui-border-soft)] px-3 py-2.5">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">Day tasks</p>
-            <p className="truncate text-sm font-semibold capitalize text-slate-800">
-              {hasSelectedDay ? daySheetTitle : "Select a day"}
+            <p className="text-[10px] font-bold tracking-[0.12em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.dayTasks")}</p>
+            <p className="truncate text-sm font-semibold capitalize text-[color:var(--ui-text-strong)]">
+              {hasSelectedDay ? daySheetTitle : t("calendar.selectDay")}
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+            <p className="mt-0.5 text-[11px] font-medium text-[color:var(--ui-text-muted)]">
               {hasSelectedDay
-                ? `${daySheetTasks.length} ${daySheetTasks.length === 1 ? "task" : "tasks"}`
-                : "Pick any date in the month grid"}
+                ? t("lists.preview.tasks", { count: daySheetTasks.length })
+                : t("calendar.tapDateHint")}
             </p>
           </div>
           {hasSelectedDay ? (
             <Link
               href={closeDaySheetHref}
-              aria-label="Close day details"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 bg-white/80 text-slate-600 transition-colors hover:bg-slate-100"
+              aria-label={t("calendar.closeDayDetails")}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)]"
             >
               <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden>
                 <path
@@ -1038,44 +1145,44 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           }`}
         >
           {!hasSelectedDay ? (
-            <div className="rounded-xl border border-dashed border-black/15 bg-white/70 px-3 py-3">
-              <p className="text-sm font-medium text-slate-500">No day selected.</p>
-              <p className="mt-1 text-xs text-slate-400">Tap a date to see its tasks in this side panel.</p>
+            <div className="rounded-xl border border-dashed border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-3 py-3">
+              <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">{t("calendar.noDaySelected")}</p>
+              <p className="mt-1 text-xs text-[color:var(--ui-text-soft)]">{t("calendar.tapDateHint")}</p>
             </div>
           ) : daySheetTasks.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-black/15 bg-white/70 px-3 py-3">
-              <p className="text-sm font-medium text-slate-500">No tasks for this day.</p>
-              <p className="mt-1 text-xs text-slate-400">Select another date to see planned work.</p>
+            <div className="rounded-xl border border-dashed border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-3 py-3">
+              <p className="text-sm font-medium text-[color:var(--ui-text-muted)]">{t("calendar.noTasksForDay")}</p>
+              <p className="mt-1 text-xs text-[color:var(--ui-text-soft)]">{t("calendar.selectAnotherDate")}</p>
             </div>
           ) : (
             daySheetTasks.map((task) => {
               const timeLabel =
                 task.dueDate.getHours() === 0 && task.dueDate.getMinutes() === 0
-                  ? "All day"
+                  ? t("calendar.allDay")
                   : timeFormatter.format(task.dueDate);
               const priorityLabel =
                 task.priority === TaskPriority.URGENT
-                  ? "Urgent"
+                  ? t("tasks.priority.urgent")
                   : task.priority === TaskPriority.HIGH
-                    ? "High"
+                    ? t("tasks.priority.high")
                     : task.priority === TaskPriority.MEDIUM
-                      ? "Medium"
-                      : "Low";
+                      ? t("tasks.priority.medium")
+                      : t("tasks.priority.low");
 
               return (
                 <Link
                   key={task.id}
                   href={openTaskHref(task.id)}
-                  className={`group block min-w-0 rounded-xl border border-black/10 px-2.5 py-2 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:shadow-sm ${priorityPillTone(task.priority)} ${
+                  className={`group block min-w-0 rounded-xl border border-[color:var(--ui-border-soft)] px-2.5 py-2 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:shadow-sm ${priorityPillTone(task.priority)} ${
                     task.isCompleted ? "opacity-70" : ""
                   }`}
                 >
                   <div className="flex min-w-0 items-start gap-2">
-                    <span className="shrink-0 rounded-md bg-white/75 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
+                    <span className="shrink-0 rounded-md bg-[color:var(--ui-surface-2)] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[color:var(--ui-text-muted)]">
                       {timeLabel}
                     </span>
                     <p
-                      className={`min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-800 ${
+                      className={`min-w-0 flex-1 truncate text-[13px] font-semibold text-[color:var(--ui-text-strong)] ${
                         task.isCompleted ? "line-through" : ""
                       }`}
                     >
@@ -1083,11 +1190,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                     </p>
                   </div>
                   <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5">
-                    <span className="inline-flex rounded-full border border-black/10 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                    <span className="inline-flex rounded-full border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ui-text-muted)]">
                       {priorityLabel}
                     </span>
                     {task.list ? (
-                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-black/10 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ui-text-muted)]">
                         <span
                           className="h-1.5 w-1.5 shrink-0 rounded-full"
                           style={{ backgroundColor: task.list.color ?? "#94a3b8" }}
@@ -1097,7 +1204,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                       </span>
                     ) : null}
                     {task.tags[0] ? (
-                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-black/10 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                      <span className="inline-flex min-w-0 items-center gap-1 rounded-full border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-1.5 py-0.5 text-[10px] font-semibold text-[color:var(--ui-text-muted)]">
                         <span
                           className="h-1.5 w-1.5 shrink-0 rounded-full"
                           style={{ backgroundColor: task.tags[0].tag.color ?? "#94a3b8" }}
@@ -1108,7 +1215,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                     ) : null}
                     {task.isCompleted ? (
                       <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                        Completed
+                        {t("tasks.views.completed")}
                       </span>
                     ) : null}
                   </div>
@@ -1123,36 +1230,36 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   return (
     <section
-      className={`min-h-[100dvh] w-full max-w-none ${isSidebarSheetOpen || selectedTask ? "overflow-hidden" : ""}`}
+      className="h-full min-h-0 w-full max-w-none overflow-hidden"
     >
       <div
-        className={`grid min-h-0 gap-3 ${
+        className={`grid h-full min-h-0 gap-3 ${
           selectedTask ? "lg:grid-cols-[320px_minmax(0,1fr)_360px]" : "lg:grid-cols-[320px_minmax(0,1fr)]"
         }`}
       >
-        <aside className="hidden min-h-0 min-w-0 overflow-hidden rounded-2xl border border-black/10 bg-white/70 shadow-sm backdrop-blur-sm lg:flex lg:h-[calc(100dvh-128px)] lg:flex-col lg:sticky lg:top-24">
+        <aside className="hidden min-h-0 min-w-0 overflow-hidden rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] shadow-sm backdrop-blur-sm lg:flex lg:h-full lg:flex-col">
           {renderSidebarPanelContent("desktop")}
         </aside>
-        <div className="ui-card relative min-h-0 min-w-0 overflow-hidden rounded-[24px] p-0">
-        <div className="sticky top-0 z-20 border-b border-black/10 bg-white/90 px-3 py-3 backdrop-blur sm:px-4 sm:py-3.5">
+        <div className="ui-card relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-[24px] p-0">
+        <div className="sticky top-0 z-20 shrink-0 border-b border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] px-3 py-3 backdrop-blur sm:px-4 sm:py-3.5">
           <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="ui-kicker ui-kicker--muted">Calendar</p>
-                <h1 className="truncate text-lg font-bold capitalize text-slate-900 sm:text-2xl">{toolbarTitle}</h1>
+                <p className="ui-kicker ui-kicker--muted">{t("nav.calendar")}</p>
+                <h1 className="truncate text-lg font-bold capitalize text-[color:var(--ui-text-strong)] sm:text-2xl">{toolbarTitle}</h1>
               </div>
               <div className="flex items-center gap-2 lg:hidden">
                 <Link
                   href={openSidebarHref}
-                  aria-label="Open filters"
+                  aria-label={t("calendar.openFilters")}
                   aria-haspopup="dialog"
                   aria-expanded={isSidebarSheetOpen}
                   aria-controls="calendar-filters-sheet"
-                  className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white/80 px-4 text-sm font-semibold text-slate-700 transition-all duration-200 ease-out hover:bg-slate-100"
+                  className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-4 text-sm font-semibold text-[color:var(--ui-text-muted)] transition-all duration-200 ease-out hover:bg-[color:var(--ui-surface-3)]"
                 >
-                  Filters
+                  {t("calendar.filters")}
                   {activeFilterCount > 0 ? (
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-[11px] font-semibold text-white">
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[color:var(--primary-strong)] px-1 text-[11px] font-semibold text-white">
                       {activeFilterCount}
                     </span>
                   ) : null}
@@ -1170,11 +1277,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             </div>
 
             <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:justify-end lg:gap-3">
-              <div className="inline-flex items-center rounded-2xl border border-black/10 bg-white/90 p-1">
+              <div className="inline-flex items-center rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-1">
                 <Link
                   href={calendarHref(previousDate, resolvedView)}
-                  aria-label="Previous period"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white/60 text-slate-700 transition-all duration-200 ease-out hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                  aria-label={t("calendar.previousPeriod")}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-muted)] transition-all duration-200 ease-out hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                 >
                   <svg viewBox="0 0 20 20" fill="none" aria-hidden className="h-4 w-4">
                     <path
@@ -1188,14 +1295,14 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                 </Link>
                 <Link
                   href={calendarHref(todayDate, resolvedView)}
-                  className="inline-flex h-9 items-center justify-center rounded-xl px-3 text-sm font-semibold text-slate-900 transition-all duration-200 ease-out hover:bg-slate-100"
+                  className="inline-flex h-9 items-center justify-center rounded-xl px-3 text-sm font-semibold text-[color:var(--ui-text-strong)] transition-all duration-200 ease-out hover:bg-[color:var(--ui-surface-3)]"
                 >
-                  Today
+                  {t("sidebar.today")}
                 </Link>
                 <Link
                   href={calendarHref(nextDate, resolvedView)}
-                  aria-label="Next period"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black/10 bg-white/60 text-slate-700 transition-all duration-200 ease-out hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                  aria-label={t("calendar.nextPeriod")}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] text-[color:var(--ui-text-muted)] transition-all duration-200 ease-out hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                 >
                   <svg viewBox="0 0 20 20" fill="none" aria-hidden className="h-4 w-4">
                     <path
@@ -1210,7 +1317,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               </div>
 
               <div className="-mx-1 overflow-x-auto pb-1 sm:mx-0 sm:overflow-visible sm:pb-0">
-                <div className="inline-flex min-w-max items-center rounded-2xl border border-black/10 bg-white/90 p-1">
+                <div className="inline-flex min-w-max items-center rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-1">
                   {calendarViews.map((view) => {
                     const isActive = resolvedView === view;
                     return (
@@ -1220,11 +1327,11 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                         aria-current={isActive ? "page" : undefined}
                         className={`inline-flex h-9 items-center justify-center rounded-xl px-3 text-sm font-semibold transition-all duration-200 ease-out ${
                           isActive
-                            ? "bg-slate-900 text-white shadow-[0_10px_20px_-16px_rgb(15_23_42/0.95)]"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                            ? "bg-[color:var(--primary-strong)] text-white shadow-[var(--ui-shadow-sm)]"
+                            : "text-[color:var(--ui-text-muted)] hover:bg-[color:var(--ui-surface-3)] hover:text-[color:var(--ui-text-strong)]"
                         }`}
                       >
-                        {viewLabel(view)}
+                        {viewLabelByMode[view]}
                       </Link>
                     );
                   })}
@@ -1241,27 +1348,27 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           </div>
         </div>
 
-        <div className="min-h-0 p-3 sm:p-4 md:p-5">
+        <div className="min-h-0 flex-1 overflow-hidden p-3 sm:p-4 md:p-5">
           {resolvedView === "day" ? (
-            <section className="min-h-0 space-y-3">
-              <div className="rounded-2xl border border-slate-200/70 bg-white/70">
-                <div className="flex items-center justify-between border-b border-slate-200/80 px-3 py-3 sm:px-4">
+            <section className="flex h-full min-h-0 flex-col">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)]">
+                <div className="flex items-center justify-between border-b border-[color:var(--ui-border-soft)] px-3 py-3 sm:px-4">
                   <p
                     className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-semibold capitalize ${
                       isFocusedDayToday
-                        ? "bg-black/5 text-slate-900 ring-1 ring-black/10"
-                        : "text-slate-800"
+                        ? "bg-[color:var(--ui-surface-3)] text-[color:var(--ui-text-strong)] ring-1 ring-[color:var(--ui-border-soft)]"
+                        : "text-[color:var(--ui-text-strong)]"
                     }`}
                   >
                     {dayTitleFormatter.format(resolvedDate)}
                   </p>
-                  <p className="text-xs font-semibold text-slate-500">{dayTasks.length} tasks</p>
+                  <p className="text-xs font-semibold text-[color:var(--ui-text-muted)]">{t("lists.preview.tasks", { count: dayTasks.length })}</p>
                 </div>
 
-                <div className="border-b border-slate-200/80 bg-slate-50/80 px-3 py-2.5 sm:px-4">
-                  <p className="text-[10px] font-bold tracking-[0.1em] text-slate-500 uppercase">All day</p>
+                <div className="border-b border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-3 py-2.5 sm:px-4">
+                  <p className="text-[10px] font-bold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.allDay")}</p>
                   {dayAllDayTasks.length === 0 ? (
-                    <p className="mt-1 text-xs text-slate-400">No all-day tasks</p>
+                    <p className="mt-1 text-xs text-[color:var(--ui-text-soft)]">{t("calendar.noAllDayTasks")}</p>
                   ) : (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {dayAllDayTasks.map((task) => (
@@ -1279,12 +1386,12 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                   )}
                 </div>
 
-                <div className="min-h-0">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                   {timelineHours.map((hour) => {
                     const hourTasks = dayTimedTasksByHour.get(hour) ?? [];
                     return (
-                      <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)] border-b border-slate-100 last:border-b-0">
-                        <div className="border-r border-slate-200/70 bg-white/95 px-2 py-2 text-[10px] font-semibold tracking-[0.08em] text-slate-500 uppercase">
+                      <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)] border-b border-[color:var(--ui-border-soft)] last:border-b-0">
+                        <div className="border-r border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] px-2 py-2 text-[10px] font-semibold tracking-[0.08em] text-[color:var(--ui-text-muted)] uppercase">
                           {hourLabel(hour)}
                         </div>
                         <div className="min-h-[62px] px-2 py-1.5">
@@ -1302,7 +1409,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                               </Link>
                             ))}
                             {hourTasks.length > 3 ? (
-                              <p className="text-[10px] font-semibold text-slate-500">+{hourTasks.length - 3} more</p>
+                              <p className="text-[10px] font-semibold text-[color:var(--ui-text-muted)]">{t("calendar.moreCount", { count: hourTasks.length - 3 })}</p>
                             ) : null}
                           </div>
                         </div>
@@ -1313,13 +1420,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               </div>
             </section>
           ) : resolvedView === "week" ? (
-            <section className="min-h-0 space-y-3">
-              <div className="rounded-2xl border border-slate-200/70 bg-white/70">
-                <div className="min-h-0 overflow-x-auto lg:overflow-visible">
-                  <div className="min-w-[860px] min-h-0 lg:min-w-0">
-                    <div className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-slate-200/80 bg-white/90">
-                      <div className="sticky left-0 z-20 border-r border-slate-200/80 bg-white/95 px-2 py-2 text-[10px] font-semibold tracking-[0.1em] text-slate-400 uppercase">
-                        Time
+            <section className="flex h-full min-h-0 flex-col">
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)]">
+                <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
+                  <div className="min-h-full min-w-[860px] lg:min-w-0">
+                    <div className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)]">
+                      <div className="sticky left-0 z-20 border-r border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] px-2 py-2 text-[10px] font-semibold tracking-[0.1em] text-[color:var(--ui-text-soft)] uppercase">
+                        {t("calendar.time")}
                       </div>
                       {weekDates.map((weekDate) => {
                         const dateKey = toDateKey(weekDate);
@@ -1327,13 +1434,13 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                         return (
                           <div
                             key={dateKey}
-                            className={`border-r border-slate-200/70 px-2 py-2 text-center last:border-r-0 ${
-                              isToday ? "bg-black/[0.04] ring-1 ring-inset ring-black/10" : ""
+                            className={`border-r border-[color:var(--ui-border-soft)] px-2 py-2 text-center last:border-r-0 ${
+                              isToday ? "bg-[color:var(--ui-surface-3)] ring-1 ring-inset ring-[color:var(--ui-border-soft)]" : ""
                             }`}
                           >
                             <p
                               className={`text-[10px] font-bold tracking-[0.08em] uppercase ${
-                                isToday ? "text-slate-700" : "text-slate-500"
+                                isToday ? "text-[color:var(--ui-text-muted)]" : "text-[color:var(--ui-text-muted)]"
                               }`}
                             >
                               {weekDayLabelFormatter.format(weekDate)}
@@ -1341,7 +1448,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                             <p className="mt-1">
                               <span
                                 className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${
-                                  isToday ? "bg-black text-white" : "text-slate-700"
+                                  isToday ? "bg-black text-white" : "text-[color:var(--ui-text-muted)]"
                                 }`}
                               >
                                 {weekDayNumberFormatter.format(weekDate)}
@@ -1352,15 +1459,15 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                       })}
                     </div>
 
-                    <div className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-slate-200/70 bg-slate-50/70">
-                      <div className="sticky left-0 z-10 border-r border-slate-200/80 bg-slate-50/95 px-2 py-2 text-[10px] font-semibold tracking-[0.1em] text-slate-400 uppercase">
-                        All day
+                    <div className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)]">
+                      <div className="sticky left-0 z-10 border-r border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-2 py-2 text-[10px] font-semibold tracking-[0.1em] text-[color:var(--ui-text-soft)] uppercase">
+                        {t("calendar.allDay")}
                       </div>
                       {weekDates.map((weekDate) => {
                         const dateKey = toDateKey(weekDate);
                         const allDayTasks = weekAllDayTasks.get(dateKey) ?? [];
                         return (
-                          <div key={dateKey} className="min-h-12 border-r border-slate-200/70 px-1.5 py-1.5 last:border-r-0">
+                          <div key={dateKey} className="min-h-12 border-r border-[color:var(--ui-border-soft)] px-1.5 py-1.5 last:border-r-0">
                             <div className="space-y-1">
                               {allDayTasks.slice(0, 2).map((task) => (
                                 <Link
@@ -1374,8 +1481,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                                 </Link>
                               ))}
                               {allDayTasks.length > 2 ? (
-                                <p className="px-1 text-[10px] font-semibold text-slate-500">
-                                  +{allDayTasks.length - 2} more
+                                <p className="px-1 text-[10px] font-semibold text-[color:var(--ui-text-muted)]">
+                                  {t("calendar.moreCount", { count: allDayTasks.length - 2 })}
                                 </p>
                               ) : null}
                             </div>
@@ -1387,16 +1494,16 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                     {timelineHours.map((hour) => (
                       <div
                         key={hour}
-                        className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-slate-100 last:border-b-0"
+                        className="grid grid-cols-[68px_repeat(7,minmax(0,1fr))] border-b border-[color:var(--ui-border-soft)] last:border-b-0"
                       >
-                        <div className="sticky left-0 z-10 border-r border-slate-200/70 bg-white/95 px-2 py-2 text-[10px] font-semibold tracking-[0.08em] text-slate-500 uppercase">
+                        <div className="sticky left-0 z-10 border-r border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] px-2 py-2 text-[10px] font-semibold tracking-[0.08em] text-[color:var(--ui-text-muted)] uppercase">
                           {hourLabel(hour)}
                         </div>
                         {weekDates.map((weekDate) => {
                           const dateKey = toDateKey(weekDate);
                           const hourTasks = weekTimedTasksByHour.get(`${dateKey}-${hour}`) ?? [];
                           return (
-                            <div key={dateKey} className="min-h-[64px] border-r border-slate-100 px-1.5 py-1.5 last:border-r-0">
+                            <div key={dateKey} className="min-h-[64px] border-r border-[color:var(--ui-border-soft)] px-1.5 py-1.5 last:border-r-0">
                               <div className="space-y-1">
                                 {hourTasks.slice(0, 2).map((task) => (
                                   <Link
@@ -1413,8 +1520,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                                   </Link>
                                 ))}
                                 {hourTasks.length > 2 ? (
-                                  <p className="px-1 text-[10px] font-semibold text-slate-500">
-                                    +{hourTasks.length - 2} more
+                                  <p className="px-1 text-[10px] font-semibold text-[color:var(--ui-text-muted)]">
+                                    {t("calendar.moreCount", { count: hourTasks.length - 2 })}
                                   </p>
                                 ) : null}
                               </div>
@@ -1428,8 +1535,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               </div>
             </section>
           ) : resolvedView === "year" ? (
-            <section className="min-h-0 space-y-3">
-              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="flex h-full min-h-0 flex-col">
+              <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 auto-rows-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {yearMonths.map((monthDate) => {
                   const monthIndex = monthDate.getMonth();
                   const miniMonthStart = new Date(resolvedDate.getFullYear(), monthIndex, 1);
@@ -1447,17 +1554,20 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                     <Link
                       key={monthIndex}
                       href={calendarHref(miniMonthStart, "month")}
-                      className="group rounded-2xl border border-slate-200/80 bg-white/90 p-3 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-[0_16px_28px_-20px_rgb(15_23_42/0.8)]"
+                      className="group flex h-full min-h-0 flex-col rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-3 transition-all duration-200 ease-out hover:-translate-y-[1px] hover:border-[color:var(--ui-border-strong)] hover:shadow-[0_16px_28px_-20px_rgb(15_23_42/0.8)]"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <p className="text-sm font-semibold capitalize text-slate-800">
+                        <p className="text-sm font-semibold capitalize text-[color:var(--ui-text-strong)]">
                           {yearMonthLabelFormatter.format(monthDate)}
                         </p>
-                        <p className="text-[11px] font-semibold text-slate-500">{monthTaskCount}</p>
+                        <p className="text-[11px] font-semibold text-[color:var(--ui-text-muted)]">{monthTaskCount}</p>
                       </div>
-                      <div className="grid grid-cols-7 gap-1">
-                        {miniWeekDays.map((day) => (
-                          <p key={day} className="text-center text-[9px] font-bold tracking-[0.08em] text-slate-400">
+                      <div className="grid flex-1 content-start grid-cols-7 gap-1">
+                        {miniWeekDays.map((day, dayIndex) => (
+                          <p
+                            key={`${day}-${dayIndex}`}
+                            className="text-center text-[9px] font-bold tracking-[0.08em] text-[color:var(--ui-text-soft)]"
+                          >
                             {day}
                           </p>
                         ))}
@@ -1474,8 +1584,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                               key={index}
                               className={`grid h-7 place-items-center rounded-md text-[10px] font-semibold ${
                                 dayTaskCount > 0
-                                  ? "bg-slate-900/8 text-slate-900"
-                                  : "text-slate-600 group-hover:bg-slate-100/80"
+                                  ? "bg-[color:var(--ui-surface-3)] text-[color:var(--ui-text-strong)]"
+                                  : "text-[color:var(--ui-text-muted)] group-hover:bg-[color:var(--ui-surface-3)]"
                               }`}
                             >
                               {dayNumber}
@@ -1491,10 +1601,10 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           ) : (
             <>
               <section className="md:hidden">
-                <div className="rounded-2xl border border-slate-200/70 bg-white/70 p-2">
+                <div className="rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] p-2">
                   <div className="grid grid-cols-7 gap-1">
                     {weekDays.map((day) => (
-                      <p key={day} className="px-1 py-1 text-center text-[10px] font-bold tracking-[0.08em] text-slate-500 uppercase">
+                      <p key={day} className="px-1 py-1 text-center text-[10px] font-bold tracking-[0.08em] text-[color:var(--ui-text-muted)] uppercase">
                         {day}
                       </p>
                     ))}
@@ -1503,12 +1613,12 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                         {week.cells.map((cell) => (
                           <article
                             key={cell.cellIndex}
-                            className={`relative min-h-[88px] min-w-0 overflow-hidden rounded-xl border border-black/10 bg-white/70 p-2 ${
+                            className={`relative min-h-[88px] min-w-0 overflow-hidden rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] p-2 ${
                               cell.isVisibleMonth
                                 ? cell.isSelectedDayCell
-                                  ? "border-black/25 bg-black/[0.05] ring-2 ring-black/15"
+                                  ? "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] ring-2 ring-[color:var(--ui-border-strong)]"
                                   : cell.isTodayCell
-                                    ? "border-black/20 bg-black/[0.03] ring-2 ring-black/10"
+                                    ? "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] ring-2 ring-[color:var(--ui-border-soft)]"
                                     : ""
                                 : "border-transparent bg-transparent"
                             }`}
@@ -1519,16 +1629,16 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                                   href={cell.dayToggleHref}
                                   aria-label={
                                     cell.isSelectedDayCell
-                                      ? `Close tasks for ${cell.dayNumber}`
-                                      : `Open tasks for ${cell.dayNumber}`
+                                      ? t("calendar.closeTasksForDay", { day: cell.dayNumber })
+                                      : t("calendar.openTasksForDay", { day: cell.dayNumber })
                                   }
-                                  className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+                                  className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                                 />
                                 <div className="relative z-10 min-w-0 pointer-events-none">
                                   <p>
                                     <span
                                       className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
-                                        cell.isTodayCell ? "bg-black text-white" : "text-slate-700"
+                                        cell.isTodayCell ? "bg-black text-white" : "text-[color:var(--ui-text-muted)]"
                                       }`}
                                     >
                                       {cell.dayNumber}
@@ -1549,8 +1659,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                                         ))}
                                         <Link
                                           href={cell.dayToggleHref}
-                                          aria-label={`View ${cell.dayTasksForCell.length} tasks`}
-                                          className="pointer-events-auto ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-slate-900/10 px-1 text-[9px] font-semibold text-slate-700 transition-colors hover:bg-slate-900/15"
+                                          aria-label={t("lists.preview.tasks", { count: cell.dayTasksForCell.length })}
+                                          className="pointer-events-auto ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--ui-surface-3)] px-1 text-[9px] font-semibold text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-2)]"
                                         >
                                           {cell.dayTasksForCell.length}
                                         </Link>
@@ -1570,16 +1680,21 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
               </section>
 
               <div
-                className={`hidden min-h-0 md:grid ${
+                className={`hidden h-full min-h-0 md:grid ${
                   isDaySheetOpen && resolvedDaySheetDate
                     ? "md:grid-cols-[minmax(0,1fr)_320px] md:gap-3"
                     : "md:grid-cols-1"
                 }`}
               >
-                <div className="overflow-x-auto rounded-2xl border border-slate-200/70 bg-white/70 p-3">
-                  <div className="grid min-w-[680px] min-h-0 grid-cols-7 gap-2 lg:min-w-0">
+                <div className="h-full min-h-0 overflow-x-auto rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] p-3">
+                  <div
+                    className="grid h-full min-h-full min-w-[680px] grid-cols-7 gap-2 lg:min-w-0"
+                    style={{
+                      gridTemplateRows: `auto repeat(${monthWeeks.length}, minmax(0, 1fr))`,
+                    }}
+                  >
                     {weekDays.map((day) => (
-                      <p key={day} className="px-2 py-1 text-xs font-bold tracking-[0.12em] text-slate-500 uppercase">
+                      <p key={day} className="px-2 py-1 text-xs font-bold tracking-[0.12em] text-[color:var(--ui-text-muted)] uppercase">
                         {day}
                       </p>
                     ))}
@@ -1588,9 +1703,9 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                         {week.cells.map((cell) => (
                           <article
                             key={cell.cellIndex}
-                            className={`relative min-h-[120px] min-w-0 overflow-hidden rounded-xl border border-black/10 bg-white/70 p-2 transition-all duration-200 ease-out lg:min-h-[140px] ${
+                            className={`relative h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] p-2 transition-all duration-200 ease-out ${
                               cell.isVisibleMonth
-                                ? `${cell.isSelectedDayCell ? "border-black/25 bg-black/[0.05] ring-2 ring-black/15 " : cell.isTodayCell ? "border-black/20 bg-black/[0.03] ring-2 ring-black/10 " : ""}shadow-[0_10px_24px_-22px_rgb(15_23_42/0.9)] hover:-translate-y-[1px] hover:shadow-[0_14px_26px_-20px_rgb(15_23_42/0.85)]`
+                                ? `${cell.isSelectedDayCell ? "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] ring-2 ring-[color:var(--ui-border-strong)] " : cell.isTodayCell ? "border-[color:var(--ui-border-strong)] bg-[color:var(--ui-surface-3)] ring-2 ring-[color:var(--ui-border-soft)] " : ""}shadow-[0_10px_24px_-22px_rgb(15_23_42/0.9)] hover:-translate-y-[1px] hover:shadow-[0_14px_26px_-20px_rgb(15_23_42/0.85)]`
                                 : "border-transparent bg-transparent"
                             }`}
                           >
@@ -1600,16 +1715,16 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                                   href={cell.dayToggleHref}
                                   aria-label={
                                     cell.isSelectedDayCell
-                                      ? `Close tasks for ${cell.dayNumber}`
-                                      : `Open tasks for ${cell.dayNumber}`
+                                      ? t("calendar.closeTasksForDay", { day: cell.dayNumber })
+                                      : t("calendar.openTasksForDay", { day: cell.dayNumber })
                                   }
-                                  className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
+                                  className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                                 />
                                 <div className="relative z-10 min-w-0 pointer-events-none">
                                   <p>
                                     <span
                                       className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                                        cell.isTodayCell ? "bg-black text-white" : "text-slate-800"
+                                        cell.isTodayCell ? "bg-black text-white" : "text-[color:var(--ui-text-strong)]"
                                       }`}
                                     >
                                       {cell.dayNumber}
@@ -1617,7 +1732,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                                   </p>
                                   <div className="mt-1 min-w-0 space-y-1">
                                     {cell.dayTasksForCell.length === 0 ? (
-                                      <p className="text-xs font-medium text-slate-400">Sin tareas</p>
+                                      <p className="text-xs font-medium text-[color:var(--ui-text-soft)]">{t("calendar.noTasks")}</p>
                                     ) : (
                                       cell.dayTasksForCell.slice(0, 3).map((task, taskIndex) => (
                                         <CalendarTaskPill
@@ -1639,17 +1754,17 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                                     {cell.dayTasksForCell.length > 2 ? (
                                       <Link
                                         href={cell.dayToggleHref}
-                                        className="pointer-events-auto inline-flex rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:bg-slate-200 lg:hidden"
+                                        className="pointer-events-auto inline-flex rounded-md bg-[color:var(--ui-surface-3)] px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)] lg:hidden"
                                       >
-                                        +{cell.dayTasksForCell.length - 2} more
+                                        {t("calendar.moreCount", { count: cell.dayTasksForCell.length - 2 })}
                                       </Link>
                                     ) : null}
                                     {cell.dayTasksForCell.length > 3 ? (
                                       <Link
                                         href={cell.dayToggleHref}
-                                        className="pointer-events-auto hidden rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 transition-colors hover:bg-slate-200 lg:inline-flex"
+                                        className="pointer-events-auto hidden rounded-md bg-[color:var(--ui-surface-3)] px-1.5 py-0.5 text-[11px] font-semibold text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)] lg:inline-flex"
                                       >
-                                        +{cell.dayTasksForCell.length - 3} more
+                                        {t("calendar.moreCount", { count: cell.dayTasksForCell.length - 3 })}
                                       </Link>
                                     ) : null}
                                   </div>
@@ -1669,37 +1784,37 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         </div>
       </div>
       {selectedTask ? (
-        <aside className="hidden min-h-0 min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 lg:flex lg:h-[calc(100dvh-128px)] lg:flex-col lg:sticky lg:top-24">
-          <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3">
-            <p className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">Task detail</p>
+        <aside className="hidden min-h-0 min-w-0 overflow-hidden rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] lg:flex lg:h-full lg:flex-col">
+          <div className="flex items-center justify-between border-b border-[color:var(--ui-border-soft)] px-4 py-3">
+            <p className="text-[10px] font-bold tracking-[0.12em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.taskDetail")}</p>
             <Link
               href={closeTaskHref}
-              className="inline-flex h-8 items-center rounded-lg border border-black/10 px-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+              className="inline-flex h-8 items-center rounded-lg border border-[color:var(--ui-border-soft)] px-2.5 text-xs font-semibold text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)]"
             >
-              Close
+              {t("common.close")}
             </Link>
           </div>
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
             <div>
-              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Title</p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-900">{selectedTask.title}</h2>
+              <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.detail.title")}</p>
+              <h2 className="mt-1 text-lg font-semibold text-[color:var(--ui-text-strong)]">{selectedTask.title}</h2>
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Due date</p>
-              <p className="mt-1 text-sm font-medium capitalize text-slate-700">
-                {selectedTask.dueDate ? detailDateFormatter.format(selectedTask.dueDate) : "No due date"}
+              <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.detail.dueDate")}</p>
+              <p className="mt-1 text-sm font-medium capitalize text-[color:var(--ui-text-muted)]">
+                {selectedTask.dueDate ? detailDateFormatter.format(selectedTask.dueDate) : t("calendar.detail.noDueDate")}
               </p>
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Priority</p>
+              <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.detail.priority")}</p>
               <span className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${priorityTone(selectedTask.priority)}`}>
-                {selectedTask.priority}
+                {priorityLabelByValue[selectedTask.priority]}
               </span>
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Status</p>
-              <p className="mt-1 text-sm font-medium text-slate-700">
-                {selectedTask.isCompleted ? "Completed" : "Pending"}
+              <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.status")}</p>
+              <p className="mt-1 text-sm font-medium text-[color:var(--ui-text-muted)]">
+                {selectedTask.isCompleted ? t("tasks.views.completed") : t("tasks.views.pending")}
               </p>
             </div>
           </div>
@@ -1711,39 +1826,39 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           <SheetA11yBridge closeHref={closeSidebarHref} initialFocusId="calendar-filters-close" />
           <Link
             href={closeSidebarHref}
-            aria-label="Close filters"
+            aria-label={t("calendar.closeFilters")}
             className="ui-overlay-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
           />
           <aside
             id="calendar-filters-sheet"
             role="dialog"
             aria-modal="true"
-            aria-label="Calendar filters"
-            className="ui-sheet-in-right absolute inset-y-0 left-0 z-[1] h-full w-full max-w-full border-r border-black/10 bg-white/95 pt-[max(0px,env(safe-area-inset-top))] shadow-[0_22px_56px_-36px_rgb(15_23_42/0.72)] backdrop-blur-sm sm:max-w-md sm:rounded-r-3xl"
+            aria-label={t("calendar.filters")}
+            className="ui-sheet-in-right absolute inset-y-0 left-0 z-[1] h-full w-full max-w-full border-r border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] pt-[max(0px,env(safe-area-inset-top))] shadow-[0_22px_56px_-36px_rgb(15_23_42/0.72)] backdrop-blur-sm sm:max-w-md sm:rounded-r-3xl"
           >
             <div className="flex h-full min-h-0 flex-col">
-              <div className="border-b border-black/10 bg-white/95 px-4 py-4">
+              <div className="border-b border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] px-4 py-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">Filters</p>
-                    <p className="mt-1 text-xs text-black/45">Refine visible tasks in the current calendar view.</p>
+                    <p className="text-sm font-semibold text-[color:var(--ui-text-strong)]">{t("calendar.filters")}</p>
+                    <p className="mt-1 text-xs text-[color:var(--ui-text-muted)]">{t("calendar.refineHint")}</p>
                   </div>
                   <Link
                     id="calendar-filters-close"
                     href={closeSidebarHref}
-                    className="inline-flex h-11 items-center rounded-xl border border-black/10 bg-white/75 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                    className="inline-flex h-11 items-center rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-4 text-sm font-semibold text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                   >
-                    Close
+                    {t("common.close")}
                   </Link>
                 </div>
                 {hasActiveFilters ? (
                   <div className="mt-3">
                     <Link
                       href={clearFiltersHref}
-                      className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-black/10 bg-white/75 px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                      className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-4 text-sm font-semibold text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                     >
                       <span aria-hidden>↺</span>
-                      Reset all
+                      {t("calendar.resetAll")}
                     </Link>
                   </div>
                 ) : null}
@@ -1753,10 +1868,10 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
                       <Link
                         key={filter.id}
                         href={filter.href}
-                        className="inline-flex h-10 max-w-full items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+                        className="inline-flex h-10 max-w-full items-center gap-2 rounded-full border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)] px-3 text-xs font-medium text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
                       >
                         <span className="truncate">{filter.label}</span>
-                        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/5 text-[11px] leading-none text-black/65">
+                        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--ui-surface-3)] text-[11px] leading-none text-[color:var(--ui-text-muted)]">
                           ×
                         </span>
                       </Link>
@@ -1775,47 +1890,47 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           <SheetA11yBridge closeHref={closeTaskHref} initialFocusId="calendar-task-close" />
           <Link
             href={closeTaskHref}
-            aria-label="Close task details"
+            aria-label={t("calendar.closeTaskDetail")}
             className="ui-overlay-fade-in absolute inset-0 bg-black/30 backdrop-blur-[2px]"
           />
           <aside
             role="dialog"
             aria-modal="true"
-            aria-label="Task detail"
-            className="ui-sheet-in-right absolute inset-y-0 right-0 z-[1] h-full w-full border-l border-slate-200/80 bg-white/95 pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] shadow-[0_22px_56px_-36px_rgb(15_23_42/0.72)] backdrop-blur-sm sm:max-w-lg"
+            aria-label={t("calendar.taskDetail")}
+            className="ui-sheet-in-right absolute inset-y-0 right-0 z-[1] h-full w-full border-l border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] pt-[max(0px,env(safe-area-inset-top))] pb-[max(0px,env(safe-area-inset-bottom))] shadow-[0_22px_56px_-36px_rgb(15_23_42/0.72)] backdrop-blur-sm sm:max-w-lg"
           >
             <div className="flex h-full min-h-0 flex-col">
-              <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3">
-                <p className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">Task detail</p>
+              <div className="flex items-center justify-between border-b border-[color:var(--ui-border-soft)] px-4 py-3">
+                <p className="text-[10px] font-bold tracking-[0.12em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.taskDetail")}</p>
                 <Link
                   id="calendar-task-close"
                   href={closeTaskHref}
-                  className="inline-flex h-8 items-center rounded-lg border border-black/10 px-2.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+                  className="inline-flex h-8 items-center rounded-lg border border-[color:var(--ui-border-soft)] px-2.5 text-xs font-semibold text-[color:var(--ui-text-muted)] transition-colors hover:bg-[color:var(--ui-surface-3)]"
                 >
-                  Close
+                  {t("common.close")}
                 </Link>
               </div>
               <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
                 <div>
-                  <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Title</p>
-                  <h2 className="mt-1 text-lg font-semibold text-slate-900">{selectedTask.title}</h2>
+                  <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.detail.title")}</p>
+                  <h2 className="mt-1 text-lg font-semibold text-[color:var(--ui-text-strong)]">{selectedTask.title}</h2>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Due date</p>
-                  <p className="mt-1 text-sm font-medium capitalize text-slate-700">
-                    {selectedTask.dueDate ? detailDateFormatter.format(selectedTask.dueDate) : "No due date"}
+                  <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.detail.dueDate")}</p>
+                  <p className="mt-1 text-sm font-medium capitalize text-[color:var(--ui-text-muted)]">
+                    {selectedTask.dueDate ? detailDateFormatter.format(selectedTask.dueDate) : t("calendar.detail.noDueDate")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Priority</p>
+                  <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.detail.priority")}</p>
                   <span className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${priorityTone(selectedTask.priority)}`}>
-                    {selectedTask.priority}
+                    {priorityLabelByValue[selectedTask.priority]}
                   </span>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold tracking-[0.1em] text-slate-500 uppercase">Status</p>
-                  <p className="mt-1 text-sm font-medium text-slate-700">
-                    {selectedTask.isCompleted ? "Completed" : "Pending"}
+                  <p className="text-xs font-semibold tracking-[0.1em] text-[color:var(--ui-text-muted)] uppercase">{t("calendar.status")}</p>
+                  <p className="mt-1 text-sm font-medium text-[color:var(--ui-text-muted)]">
+                    {selectedTask.isCompleted ? t("tasks.views.completed") : t("tasks.views.pending")}
                   </p>
                 </div>
               </div>

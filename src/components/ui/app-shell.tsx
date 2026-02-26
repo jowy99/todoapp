@@ -6,6 +6,7 @@ type AppShellProps = {
   detail: ReactNode;
   sidebarWidth?: string;
   showDetail?: boolean;
+  ariaLabel: string;
 };
 
 export function AppShell({
@@ -14,10 +15,11 @@ export function AppShell({
   detail,
   sidebarWidth = "280px",
   showDetail = false,
+  ariaLabel,
 }: AppShellProps) {
   return (
     <section
-      aria-label="App shell"
+      aria-label={ariaLabel}
       className={`todo-shell w-full max-w-none min-w-0 ${showDetail ? "todo-shell--detail" : ""}`}
       style={{ "--todo-sidebar-width": sidebarWidth } as CSSProperties}
     >

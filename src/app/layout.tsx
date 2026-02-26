@@ -1,5 +1,25 @@
 import type { Metadata } from "next";
+import { cookies, headers } from "next/headers";
 import { IBM_Plex_Mono, Manrope } from "next/font/google";
+import { LocaleProvider } from "@/components/settings/locale-provider";
+import { ThemeProvider } from "@/components/settings/theme-provider";
+import { UiPreferencesProvider } from "@/components/settings/ui-preferences-provider";
+import { ToasterProvider } from "@/components/ui/toaster-provider";
+import { getMessage } from "@/lib/i18n/messages";
+import { LOCALE_COOKIE_KEY, resolveInitialLocale } from "@/lib/preferences/locale";
+import { themeInitScript } from "@/lib/preferences/theme";
+import {
+  DEFAULT_MOTION_PREFERENCE,
+  DEFAULT_SHOW_COMPLETED_TASKS_PREFERENCE,
+  DEFAULT_WEEK_START_PREFERENCE,
+  isMotionPreference,
+  isWeekStartPreference,
+  parseShowCompletedPreference,
+  UI_MOTION_COOKIE_KEY,
+  UI_SHOW_COMPLETED_COOKIE_KEY,
+  UI_WEEK_START_COOKIE_KEY,
+  uiPreferencesInitScript,
+} from "@/lib/preferences/ui";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -14,22 +34,72 @@ const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Todo Studio",
-  description: "Local-first task management built with Next.js and Prisma",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const requestHeaders = await headers();
+  const locale = resolveInitialLocale({
+    cookieLocale: cookieStore.get(LOCALE_COOKIE_KEY)?.value,
+    acceptLanguage: requestHeaders.get("accept-language"),
+  });
 
-export default function RootLayout({
+  return {
+    title: getMessage(locale, "app.title"),
+    description: getMessage(locale, "app.description"),
+  };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const requestHeaders = await headers();
+  const initialLocale = resolveInitialLocale({
+    cookieLocale: cookieStore.get(LOCALE_COOKIE_KEY)?.value,
+    acceptLanguage: requestHeaders.get("accept-language"),
+  });
+  const cookieWeekStart = cookieStore.get(UI_WEEK_START_COOKIE_KEY)?.value;
+  const initialWeekStart = isWeekStartPreference(cookieWeekStart)
+    ? cookieWeekStart
+    : DEFAULT_WEEK_START_PREFERENCE;
+  const cookieShowCompleted = cookieStore.get(UI_SHOW_COMPLETED_COOKIE_KEY)?.value;
+  const initialShowCompletedTasks =
+    parseShowCompletedPreference(cookieShowCompleted) ?? DEFAULT_SHOW_COMPLETED_TASKS_PREFERENCE;
+  const cookieMotion = cookieStore.get(UI_MOTION_COOKIE_KEY)?.value;
+  const initialMotionPreference = isMotionPreference(cookieMotion)
+    ? cookieMotion
+    : DEFAULT_MOTION_PREFERENCE;
+  const initialResolvedMotion = initialMotionPreference === "reduce" ? "reduce" : "no-preference";
+
   return (
-    <html lang="en">
+    <html
+      lang={initialLocale}
+      data-locale={initialLocale}
+      data-week-start={initialWeekStart}
+      data-show-completed={initialShowCompletedTasks ? "1" : "0"}
+      data-motion-preference={initialMotionPreference}
+      data-motion={initialResolvedMotion}
+      suppressHydrationWarning
+    >
+      <head>
+        <script id="theme-init" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script id="ui-preferences-init" dangerouslySetInnerHTML={{ __html: uiPreferencesInitScript }} />
+      </head>
       <body
         className={`${manrope.variable} ${ibmPlexMono.variable} safe-px safe-pt safe-pb min-h-[100dvh] antialiased`}
       >
-        {children}
+        <ThemeProvider>
+          <LocaleProvider initialLocale={initialLocale}>
+            <UiPreferencesProvider
+              initialWeekStart={initialWeekStart}
+              initialShowCompletedTasks={initialShowCompletedTasks}
+              initialMotionPreference={initialMotionPreference}
+            >
+              <ToasterProvider>{children}</ToasterProvider>
+            </UiPreferencesProvider>
+          </LocaleProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

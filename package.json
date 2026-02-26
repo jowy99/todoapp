@@ -14,6 +14,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "seed": "pnpm db:seed",
     "lint": "eslint .",
+    "i18n:check": "node scripts/check-i18n-hardcoded.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",

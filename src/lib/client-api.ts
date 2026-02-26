@@ -1,8 +1,24 @@
 export type ApiErrorPayload = {
   error?: {
     message?: string;
+    details?: unknown;
   };
 };
+
+export class ApiRequestError extends Error {
+  status: number;
+  details?: unknown;
+
+  constructor(status: number, message: string, details?: unknown) {
+    super(message);
+    this.status = status;
+    this.details = details;
+  }
+}
+
+export function isApiRequestError(error: unknown): error is ApiRequestError {
+  return error instanceof ApiRequestError;
+}
 
 export async function fetchApi<TData>(url: string, init?: RequestInit) {
   const response = await fetch(url, {
@@ -19,7 +35,11 @@ export async function fetchApi<TData>(url: string, init?: RequestInit) {
   };
 
   if (!response.ok) {
-    throw new Error(payload.error?.message ?? "Request failed.");
+    throw new ApiRequestError(
+      response.status,
+      payload.error?.message ?? "Request failed.",
+      payload.error?.details,
+    );
   }
 
   return payload.data as TData;

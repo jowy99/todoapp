@@ -1,9 +1,19 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { fetchApi } from "@/lib/client-api";
-import { TaskDetailPanel } from "@/components/tasks/task-detail-panel";
+import { useLocalePreference, useT } from "@/components/settings/locale-provider";
 import { SidebarNav } from "@/components/tasks/sidebar-nav";
 import { AppShell } from "@/components/ui/app-shell";
 import { Input } from "@/components/ui/input";
@@ -80,6 +90,8 @@ type TaskFormState = {
   tagIds: string[];
 };
 
+type TaskFormField = "title" | "description" | "dueDate" | "priority" | "status" | "listId";
+
 type TasksWorkspaceProps = {
   initialTasks: TaskItem[];
   initialLists: ListItem[];
@@ -89,13 +101,20 @@ type TasksWorkspaceProps = {
 const priorities: Priority[] = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 const statuses: Status[] = ["TODO", "IN_PROGRESS", "DONE"];
 const taskViews: TaskView[] = ["all", "pending", "completed", "today", "upcoming"];
-const viewLabels: Record<TaskView, string> = {
-  all: "All Tasks",
-  pending: "Pending",
-  completed: "Completed",
-  today: "Today",
-  upcoming: "Upcoming",
-};
+const TASKS_INITIAL_RENDER_LIMIT = 120;
+const TASKS_RENDER_STEP = 120;
+
+const TaskDetailPanel = dynamic(
+  () => import("@/components/tasks/task-detail-panel").then((mod) => mod.TaskDetailPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <section className="flex h-full flex-col px-3 py-3 sm:px-6 sm:py-6 md:px-8 md:py-8">
+        <div className="h-full animate-pulse rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-2)]" />
+      </section>
+    ),
+  },
+);
 
 function toIsoDateTime(value: string) {
   if (!value.trim()) {
@@ -131,10 +150,158 @@ function buildTaskFormState(task?: TaskItem): TaskFormState {
   };
 }
 
+type TaskRowProps = {
+  task: TaskItem;
+  isEditing: boolean;
+  onToggleCompletion: (task: TaskItem) => void | Promise<void>;
+  onToggleDetails: (task: TaskItem) => void;
+};
+
+const TaskRow = memo(function TaskRow({
+  task,
+  isEditing,
+  onToggleCompletion,
+  onToggleDetails,
+}: TaskRowProps) {
+  const t = useT();
+  const { locale } = useLocalePreference();
+  const localeTag = locale === "es" ? "es-ES" : "en-US";
+  const priorityLabel = useMemo(() => {
+    if (task.priority === "URGENT") {
+      return t("tasks.priority.urgent");
+    }
+    if (task.priority === "HIGH") {
+      return t("tasks.priority.high");
+    }
+    if (task.priority === "MEDIUM") {
+      return t("tasks.priority.medium");
+    }
+    return t("tasks.priority.low");
+  }, [t, task.priority]);
+  const statusLabel = useMemo(() => {
+    if (task.status === "IN_PROGRESS") {
+      return t("tasks.status.inProgress");
+    }
+    if (task.status === "DONE") {
+      return t("tasks.status.done");
+    }
+    return t("tasks.status.todo");
+  }, [t, task.status]);
+  const dueDateLabel = useMemo(
+    () => (task.dueDate ? new Date(task.dueDate).toLocaleDateString(localeTag) : null),
+    [localeTag, task.dueDate],
+  );
+  const firstTagName = task.tags[0]?.tag.name ?? null;
+
+  const handleToggleCompletion = useCallback(() => {
+    void onToggleCompletion(task);
+  }, [onToggleCompletion, task]);
+
+  const handleItemKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) {
+        return;
+      }
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handleToggleCompletion();
+      }
+    },
+    [handleToggleCompletion],
+  );
+
+  const handleDetailClick = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      onToggleDetails(task);
+    },
+    [onToggleDetails, task],
+  );
+
+  return (
+    <li
+      className={`ui-task-row group p-3 transition-all duration-200 ease-out last:border-b-0 sm:p-4 ${
+        isEditing ? "ui-task-row--active" : ""
+      }`}
+    >
+      <div
+        className="flex cursor-pointer items-start justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-ring-color)]"
+        role="button"
+        tabIndex={0}
+        onClick={handleToggleCompletion}
+        onKeyDown={handleItemKeyDown}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <input
+            type="checkbox"
+            aria-label={t("tasks.markTask", { title: task.title })}
+            checked={task.isCompleted}
+            disabled={!task.canEdit}
+            onClick={(event) => event.stopPropagation()}
+            onChange={handleToggleCompletion}
+            className="accent-success mt-1 h-4 w-4 rounded-[4px]"
+          />
+          <div className="min-w-0 text-left">
+            <p
+              className={`truncate text-base leading-tight font-semibold transition-colors duration-200 sm:text-lg md:text-[22px] ${
+                task.isCompleted ? "text-[color:var(--ui-text-soft)] line-through" : "text-[color:var(--ui-text-strong)]"
+              }`}
+            >
+              {task.title}
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--ui-text-muted)]">
+              {dueDateLabel ? <span className="ui-chip ui-chip--meta">{dueDateLabel}</span> : null}
+              <span className="ui-chip ui-chip--meta">{priorityLabel}</span>
+              <span className="ui-chip ui-chip--meta">{statusLabel}</span>
+              {task.list ? (
+                <span className="ui-chip ui-chip--meta inline-flex items-center gap-1">
+                  <span
+                    className="h-2 w-2 rounded-[3px]"
+                    style={{ backgroundColor: task.list.color ?? "#f87171" }}
+                  />
+                  {task.list.name}
+                </span>
+              ) : (
+                <span className="ui-chip ui-chip--meta">{t("tasks.noList")}</span>
+              )}
+              {firstTagName ? <span className="ui-chip ui-chip--meta">{firstTagName}</span> : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            disabled={!task.canEdit}
+            onClick={handleDetailClick}
+            aria-label={
+              isEditing
+                ? t("tasks.closeDetail", { title: task.title })
+                : t("tasks.openDetail", { title: task.title })
+            }
+            className={`ui-btn ui-btn--secondary ui-btn--icon h-9 w-9 rounded-xl text-[color:var(--ui-text-muted)] opacity-90 transition-all duration-200 group-hover:opacity-100 disabled:opacity-50 ${
+              isEditing ? "ui-btn--active-dark" : ""
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
+              <path
+                d={isEditing ? "m14 7-5 5 5 5" : "m10 7 5 5-5 5"}
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+});
+
 export function TasksWorkspace({ initialTasks, initialLists, initialTags }: TasksWorkspaceProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const t = useT();
 
   const [tasks, setTasks] = useState(initialTasks);
   const [lists, setLists] = useState(initialLists);
@@ -156,10 +323,22 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
   const [showTagCreator, setShowTagCreator] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [visibleTasksLimit, setVisibleTasksLimit] = useState(TASKS_INITIAL_RENDER_LIMIT);
 
+  const searchParamsString = searchParams.toString();
   const rawView = searchParams.get("view");
   const activeView: TaskView =
     rawView && taskViews.includes(rawView as TaskView) ? (rawView as TaskView) : "all";
+  const viewLabels = useMemo<Record<TaskView, string>>(
+    () => ({
+      all: t("tasks.views.all"),
+      pending: t("tasks.views.pending"),
+      completed: t("tasks.views.completed"),
+      today: t("tasks.views.today"),
+      upcoming: t("tasks.views.upcoming"),
+    }),
+    [t],
+  );
   const rawListId = searchParams.get("list");
   const rawTagId = searchParams.get("tag");
   const activeList = rawListId ? lists.find((list) => list.id === rawListId) ?? null : null;
@@ -248,6 +427,12 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
       return dueDate >= startOfTomorrow;
     });
   }, [activeView, scopedTasks]);
+  const visibleTasks = useMemo(
+    () => filteredTasks.slice(0, visibleTasksLimit),
+    [filteredTasks, visibleTasksLimit],
+  );
+  const hasMoreVisibleTasks = visibleTasks.length < filteredTasks.length;
+  const remainingVisibleTaskCount = filteredTasks.length - visibleTasks.length;
   const visibleTaskCount = filteredTasks.length;
   const filterSummary = useMemo(() => {
     const parts: string[] = [];
@@ -255,13 +440,13 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
       parts.push(viewLabels[activeView]);
     }
     if (activeList) {
-      parts.push(`List: ${activeList.name}`);
+      parts.push(t("tasks.filter.list", { name: activeList.name }));
     }
     if (activeTag) {
-      parts.push(`Tag: ${activeTag.name}`);
+      parts.push(t("tasks.filter.tag", { name: activeTag.name }));
     }
-    return parts.length > 0 ? parts.join(" · ") : "All tasks";
-  }, [activeList, activeTag, activeView]);
+    return parts.length > 0 ? parts.join(" · ") : t("tasks.filter.all");
+  }, [activeList, activeTag, activeView, t, viewLabels]);
   const mainTitle = useMemo(() => {
     if (activeList) {
       return activeList.name;
@@ -270,7 +455,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
       return `#${activeTag.name}`;
     }
     return viewLabels[activeView];
-  }, [activeList, activeTag, activeView]);
+  }, [activeList, activeTag, activeView, viewLabels]);
   const hasListFilter = Boolean(activeListId);
   const hasTagFilter = Boolean(activeTagId);
   const listTaskCounts = useMemo(() => {
@@ -283,10 +468,15 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
     }
     return counts;
   }, [tasks]);
-  const selectedList = lists.find((list) => list.id === taskForm.listId);
+  const selectedList = useMemo(
+    () => lists.find((list) => list.id === taskForm.listId) ?? null,
+    [lists, taskForm.listId],
+  );
   const canCreateInSelectedList = !selectedList || selectedList.canEdit !== false;
-  const selectedTask = editingTaskId ? (tasks.find((task) => task.id === editingTaskId) ?? null) : null;
-  const showInlineEditForm = false;
+  const selectedTask = useMemo(
+    () => (editingTaskId ? (tasks.find((task) => task.id === editingTaskId) ?? null) : null),
+    [editingTaskId, tasks],
+  );
   const sidebarLists = useMemo(
     () =>
       lists.map((list) => ({
@@ -311,6 +501,10 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
     const stored = window.localStorage.getItem("todo.sidebar.collapsed");
     setIsSidebarCollapsed(stored === "1");
   }, []);
+
+  useEffect(() => {
+    setVisibleTasksLimit(TASKS_INITIAL_RENDER_LIMIT);
+  }, [activeListId, activeTagId, activeView]);
 
   useEffect(() => {
     window.localStorage.setItem("todo.sidebar.collapsed", isSidebarCollapsed ? "1" : "0");
@@ -400,148 +594,160 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
     return () => window.clearTimeout(timeout);
   }, [notice, error]);
 
-  function resetNotice() {
+  const resetNotice = useCallback(() => {
     setNotice(null);
     setError(null);
-  }
+  }, []);
 
-  function notifySuccess(message: string) {
+  const notifySuccess = useCallback((message: string) => {
     setError(null);
     setNotice(message);
-  }
+  }, []);
 
-  function notifyError(reason: unknown, fallback: string) {
+  const notifyError = useCallback((reason: unknown, fallback: string) => {
     const message = reason instanceof Error ? reason.message : fallback;
     setNotice(null);
     setError(message);
-  }
+  }, []);
 
-  async function handleCreateList(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    resetNotice();
-    setIsBusy(true);
+  const handleCreateList = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      resetNotice();
+      setIsBusy(true);
 
-    try {
-      const data = await fetchApi<{ list: ListItem }>("/api/lists", {
-        method: "POST",
-        body: JSON.stringify({
-          name: listName.trim(),
-          color: listColor,
-        }),
-      });
+      try {
+        const data = await fetchApi<{ list: ListItem }>("/api/lists", {
+          method: "POST",
+          body: JSON.stringify({
+            name: listName.trim(),
+            color: listColor,
+          }),
+        });
 
-      setLists((prev) => [
-        ...prev,
-        {
-          ...data.list,
-          accessRole: "OWNER",
-          canEdit: true,
-          isShared: false,
-        },
-      ]);
-      setListName("");
-      setTaskForm((prev) => ({
-        ...prev,
-        listId: data.list.id,
-      }));
-      setShowListCreator(false);
-      notifySuccess("Lista creada.");
-    } catch (createListError) {
-      notifyError(createListError, "No fue posible crear la lista.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
+        setLists((prev) => [
+          ...prev,
+          {
+            ...data.list,
+            accessRole: "OWNER",
+            canEdit: true,
+            isShared: false,
+          },
+        ]);
+        setListName("");
+        setTaskForm((prev) => ({
+          ...prev,
+          listId: data.list.id,
+        }));
+        setShowListCreator(false);
+        notifySuccess(t("tasks.notice.listCreated"));
+      } catch (createListError) {
+        notifyError(createListError, t("tasks.error.listCreate"));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [listColor, listName, notifyError, notifySuccess, resetNotice, t],
+  );
 
-  async function handleCreateTag(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    resetNotice();
-    setIsBusy(true);
+  const handleCreateTag = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      resetNotice();
+      setIsBusy(true);
 
-    try {
-      const data = await fetchApi<{ tag: TagItem }>("/api/tags", {
-        method: "POST",
-        body: JSON.stringify({
-          name: tagName.trim(),
-          color: tagColor,
-        }),
-      });
-      setTags((prev) => [...prev, data.tag]);
-      setTagName("");
-      setTaskForm((prev) => ({
-        ...prev,
-        tagIds: prev.tagIds.includes(data.tag.id) ? prev.tagIds : [...prev.tagIds, data.tag.id],
-      }));
-      setShowTagCreator(false);
-      notifySuccess("Etiqueta creada.");
-    } catch (createTagError) {
-      notifyError(createTagError, "No fue posible crear la etiqueta.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
+      try {
+        const data = await fetchApi<{ tag: TagItem }>("/api/tags", {
+          method: "POST",
+          body: JSON.stringify({
+            name: tagName.trim(),
+            color: tagColor,
+          }),
+        });
+        setTags((prev) => [...prev, data.tag]);
+        setTagName("");
+        setTaskForm((prev) => ({
+          ...prev,
+          tagIds: prev.tagIds.includes(data.tag.id) ? prev.tagIds : [...prev.tagIds, data.tag.id],
+        }));
+        setShowTagCreator(false);
+        notifySuccess(t("tasks.notice.tagCreated"));
+      } catch (createTagError) {
+        notifyError(createTagError, t("tasks.error.tagCreate"));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [notifyError, notifySuccess, resetNotice, t, tagColor, tagName],
+  );
 
-  async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    resetNotice();
-    setIsBusy(true);
+  const handleCreateTask = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      resetNotice();
+      setIsBusy(true);
 
-    try {
-      if (!canCreateInSelectedList) {
-        throw new Error("Tu rol en la lista seleccionada es de solo lectura.");
+      try {
+        if (!canCreateInSelectedList) {
+          throw new Error(t("tasks.error.readOnlyList"));
+        }
+
+        const data = await fetchApi<{ task: TaskItem }>("/api/tasks", {
+          method: "POST",
+          body: JSON.stringify({
+            title: taskForm.title.trim(),
+            description: taskForm.description.trim() || undefined,
+            dueDate: toIsoDateTime(taskForm.dueDate),
+            priority: taskForm.priority,
+            status: taskForm.status,
+            listId: taskForm.listId || null,
+            tagIds: taskForm.tagIds,
+          }),
+        });
+        setTasks((prev) => [data.task, ...prev]);
+        setTaskForm(buildTaskFormState());
+        notifySuccess(t("tasks.notice.taskCreated"));
+      } catch (createTaskError) {
+        notifyError(createTaskError, t("tasks.error.taskCreate"));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [canCreateInSelectedList, notifyError, notifySuccess, resetNotice, t, taskForm],
+  );
+
+  const toggleTaskCompletion = useCallback(
+    async (task: TaskItem) => {
+      resetNotice();
+
+      if (!task.canEdit) {
+        setError(t("tasks.error.readOnlyTask"));
+        return;
       }
 
-      const data = await fetchApi<{ task: TaskItem }>("/api/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title: taskForm.title.trim(),
-          description: taskForm.description.trim() || undefined,
-          dueDate: toIsoDateTime(taskForm.dueDate),
-          priority: taskForm.priority,
-          status: taskForm.status,
-          listId: taskForm.listId || null,
-          tagIds: taskForm.tagIds,
-        }),
-      });
-      setTasks((prev) => [data.task, ...prev]);
-      setTaskForm(buildTaskFormState());
-      notifySuccess("Tarea creada.");
-    } catch (createTaskError) {
-      notifyError(createTaskError, "No fue posible crear la tarea.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
+      setIsBusy(true);
 
-  async function toggleTaskCompletion(task: TaskItem) {
-    resetNotice();
+      try {
+        const data = await fetchApi<{ task: TaskItem }>(`/api/tasks/${task.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            isCompleted: !task.isCompleted,
+          }),
+        });
+        setTasks((prev) => prev.map((current) => (current.id === task.id ? data.task : current)));
+        notifySuccess(t("tasks.notice.statusUpdated"));
+      } catch (toggleError) {
+        notifyError(toggleError, t("tasks.error.statusUpdate"));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [notifyError, notifySuccess, resetNotice, t],
+  );
 
+  const startEditing = useCallback((task: TaskItem) => {
     if (!task.canEdit) {
-      setError("Tu rol es de solo lectura en esta tarea.");
-      return;
-    }
-
-    setIsBusy(true);
-
-    try {
-      const data = await fetchApi<{ task: TaskItem }>(`/api/tasks/${task.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          isCompleted: !task.isCompleted,
-        }),
-      });
-      setTasks((prev) => prev.map((current) => (current.id === task.id ? data.task : current)));
-      notifySuccess("Estado actualizado.");
-    } catch (toggleError) {
-      notifyError(toggleError, "No fue posible actualizar la tarea.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  function startEditing(task: TaskItem) {
-    if (!task.canEdit) {
-      setError("Tu rol es de solo lectura en esta tarea.");
+      setError(t("tasks.error.readOnlyTask"));
       return;
     }
 
@@ -549,18 +755,21 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
     setEditingForm(buildTaskFormState(task));
     setError(null);
     setNotice(null);
-  }
+  }, [t]);
 
-  function toggleTaskDetails(task: TaskItem) {
-    if (editingTaskId === task.id) {
-      setEditingTaskId(null);
-      return;
-    }
+  const toggleTaskDetails = useCallback(
+    (task: TaskItem) => {
+      if (editingTaskId === task.id) {
+        setEditingTaskId(null);
+        return;
+      }
 
-    startEditing(task);
-  }
+      startEditing(task);
+    },
+    [editingTaskId, startEditing],
+  );
 
-  function handleSidebarRequestCreateList() {
+  const handleSidebarRequestCreateList = useCallback(() => {
     if (isSidebarCollapsed && !isMobileSidebarOpen) {
       setIsSidebarCollapsed(false);
       setShowTagCreator(false);
@@ -570,9 +779,9 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
 
     setShowTagCreator(false);
     setShowListCreator((prev) => !prev);
-  }
+  }, [isMobileSidebarOpen, isSidebarCollapsed]);
 
-  function handleSidebarRequestCreateTag() {
+  const handleSidebarRequestCreateTag = useCallback(() => {
     if (isSidebarCollapsed && !isMobileSidebarOpen) {
       setIsSidebarCollapsed(false);
       setShowListCreator(false);
@@ -582,119 +791,137 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
 
     setShowListCreator(false);
     setShowTagCreator((prev) => !prev);
-  }
+  }, [isMobileSidebarOpen, isSidebarCollapsed]);
 
-  function updateFilters(updates: Partial<{ view: TaskView; listId: string | null; tagId: string | null }>) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (updates.view !== undefined) {
-      if (updates.view === "all") {
-        params.delete("view");
-      } else {
-        params.set("view", updates.view);
+  const updateFilters = useCallback(
+    (updates: Partial<{ view: TaskView; listId: string | null; tagId: string | null }>) => {
+      const params = new URLSearchParams(searchParamsString);
+      if (updates.view !== undefined) {
+        if (updates.view === "all") {
+          params.delete("view");
+        } else {
+          params.set("view", updates.view);
+        }
       }
-    }
-    if (updates.listId !== undefined) {
-      if (updates.listId) {
-        params.set("list", updates.listId);
-      } else {
-        params.delete("list");
+      if (updates.listId !== undefined) {
+        if (updates.listId) {
+          params.set("list", updates.listId);
+        } else {
+          params.delete("list");
+        }
       }
-    }
-    if (updates.tagId !== undefined) {
-      if (updates.tagId) {
-        params.set("tag", updates.tagId);
-      } else {
-        params.delete("tag");
+      if (updates.tagId !== undefined) {
+        if (updates.tagId) {
+          params.set("tag", updates.tagId);
+        } else {
+          params.delete("tag");
+        }
       }
-    }
 
-    const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-    setIsMobileSidebarOpen(false);
-  }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      setIsMobileSidebarOpen(false);
+    },
+    [pathname, router, searchParamsString],
+  );
 
-  function handleSelectList(listId: string | null) {
-    updateFilters({ listId });
-  }
+  const handleSelectList = useCallback(
+    (listId: string | null) => {
+      updateFilters({ listId });
+    },
+    [updateFilters],
+  );
 
-  function handleSelectTag(tagId: string | null) {
-    updateFilters({ tagId });
-  }
+  const handleSelectTag = useCallback(
+    (tagId: string | null) => {
+      updateFilters({ tagId });
+    },
+    [updateFilters],
+  );
 
-  function handleSelectView(view: TaskView) {
-    updateFilters({ view });
-  }
+  const handleSelectView = useCallback(
+    (view: TaskView) => {
+      updateFilters({ view });
+    },
+    [updateFilters],
+  );
 
-  function handleClearListFilter() {
+  const handleClearListFilter = useCallback(() => {
     updateFilters({ listId: null });
-  }
+  }, [updateFilters]);
 
-  function handleClearTagFilter() {
+  const handleClearTagFilter = useCallback(() => {
     updateFilters({ tagId: null });
-  }
+  }, [updateFilters]);
 
-  async function handleSaveEdit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const handleSaveEdit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
 
-    if (!editingTaskId) {
-      return;
-    }
-
-    resetNotice();
-    setIsBusy(true);
-
-    try {
-      const data = await fetchApi<{ task: TaskItem }>(`/api/tasks/${editingTaskId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          title: editingForm.title.trim(),
-          description: editingForm.description.trim(),
-          dueDate: toIsoDateTime(editingForm.dueDate),
-          priority: editingForm.priority,
-          status: editingForm.status,
-          listId: editingForm.listId || null,
-          tagIds: editingForm.tagIds,
-        }),
-      });
-      setTasks((prev) =>
-        prev.map((current) => (current.id === editingTaskId ? data.task : current)),
-      );
-      setEditingTaskId(null);
-      notifySuccess("Tarea actualizada.");
-    } catch (editError) {
-      notifyError(editError, "No fue posible guardar los cambios.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
-
-  async function handleDeleteTask(task: TaskItem) {
-    resetNotice();
-
-    if (!task.canEdit) {
-      setError("Tu rol es de solo lectura en esta tarea.");
-      return;
-    }
-
-    setIsBusy(true);
-
-    try {
-      await fetchApi<{ ok: boolean }>(`/api/tasks/${task.id}`, {
-        method: "DELETE",
-      });
-      setTasks((prev) => prev.filter((item) => item.id !== task.id));
-      if (editingTaskId === task.id) {
-        setEditingTaskId(null);
+      if (!editingTaskId) {
+        return;
       }
-      notifySuccess("Tarea eliminada.");
-    } catch (deleteError) {
-      notifyError(deleteError, "No fue posible eliminar la tarea.");
-    } finally {
-      setIsBusy(false);
-    }
-  }
 
-  function toggleFormTag(id: string, mode: "create" | "edit") {
+      resetNotice();
+      setIsBusy(true);
+
+      try {
+        const data = await fetchApi<{ task: TaskItem }>(`/api/tasks/${editingTaskId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            title: editingForm.title.trim(),
+            description: editingForm.description.trim(),
+            dueDate: toIsoDateTime(editingForm.dueDate),
+            priority: editingForm.priority,
+            status: editingForm.status,
+            listId: editingForm.listId || null,
+            tagIds: editingForm.tagIds,
+          }),
+        });
+        setTasks((prev) =>
+          prev.map((current) => (current.id === editingTaskId ? data.task : current)),
+        );
+        setEditingTaskId(null);
+        notifySuccess(t("tasks.notice.taskUpdated"));
+      } catch (editError) {
+        notifyError(editError, t("tasks.error.taskUpdate"));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [editingForm, editingTaskId, notifyError, notifySuccess, resetNotice, t],
+  );
+
+  const handleDeleteTask = useCallback(
+    async (task: TaskItem) => {
+      resetNotice();
+
+      if (!task.canEdit) {
+        setError(t("tasks.error.readOnlyTask"));
+        return;
+      }
+
+      setIsBusy(true);
+
+      try {
+        await fetchApi<{ ok: boolean }>(`/api/tasks/${task.id}`, {
+          method: "DELETE",
+        });
+        setTasks((prev) => prev.filter((item) => item.id !== task.id));
+        if (editingTaskId === task.id) {
+          setEditingTaskId(null);
+        }
+        notifySuccess(t("tasks.notice.taskDeleted"));
+      } catch (deleteError) {
+        notifyError(deleteError, t("tasks.error.taskDelete"));
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [editingTaskId, notifyError, notifySuccess, resetNotice, t],
+  );
+
+  const toggleFormTag = useCallback((id: string, mode: "create" | "edit") => {
     if (mode === "create") {
       setTaskForm((prev) => ({
         ...prev,
@@ -711,7 +938,67 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
         ? prev.tagIds.filter((tagId) => tagId !== id)
         : [...prev.tagIds, id],
     }));
-  }
+  }, []);
+
+  const handleToastDismiss = useCallback(() => {
+    setNotice(null);
+    setError(null);
+  }, []);
+
+  const handleSidebarToggle = useCallback(() => {
+    setIsSidebarCollapsed((prev) => !prev);
+  }, []);
+
+  const handleOpenMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(true);
+  }, []);
+
+  const handleCloseMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(false);
+  }, []);
+
+  const handleToggleTaskDetailsForm = useCallback(() => {
+    if (showTaskDetails) {
+      setShowListCreator(false);
+      setShowTagCreator(false);
+    }
+    setShowTaskDetails((prev) => !prev);
+  }, [showTaskDetails]);
+
+  const handleCloseEditing = useCallback(() => {
+    setEditingTaskId(null);
+  }, []);
+
+  const handleDeleteSelectedTask = useCallback(() => {
+    if (selectedTask) {
+      void handleDeleteTask(selectedTask);
+    }
+  }, [handleDeleteTask, selectedTask]);
+
+  const handleEditFieldChange = useCallback((field: TaskFormField, value: string) => {
+    const typedValue = value as TaskFormState[TaskFormField];
+    setEditingForm((prev) => ({
+      ...prev,
+      [field]: typedValue,
+    }));
+  }, []);
+
+  const handleToggleEditTag = useCallback(
+    (tagId: string) => {
+      toggleFormTag(tagId, "edit");
+    },
+    [toggleFormTag],
+  );
+
+  const handleLoadMoreTasks = useCallback(() => {
+    setVisibleTasksLimit((current) =>
+      Math.min(current + TASKS_RENDER_STEP, filteredTasks.length),
+    );
+  }, [filteredTasks.length]);
+
+  const handleShowAllTasks = useCallback(() => {
+    setVisibleTasksLimit(filteredTasks.length);
+  }, [filteredTasks.length]);
 
   return (
     <section className="todo-page space-y-6">
@@ -725,16 +1012,13 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
               {error ? "!" : "✓"}
             </span>
             <div className="min-w-0">
-              <p className="todo-toast__title">Todo Studio</p>
+              <p className="todo-toast__title">{t("app.title")}</p>
               <p className="todo-toast__message">{error ?? notice}</p>
             </div>
             <button
               type="button"
-              onClick={() => {
-                setNotice(null);
-                setError(null);
-              }}
-              aria-label="Cerrar notificacion"
+              onClick={handleToastDismiss}
+              aria-label={t("tasks.toastClose")}
               className="todo-toast__close"
             >
               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" aria-hidden>
@@ -746,6 +1030,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
       ) : null}
 
       <AppShell
+        ariaLabel={t("nav.primary")}
         sidebarWidth={isSidebarCollapsed ? "72px" : "280px"}
         showDetail={Boolean(selectedTask)}
         sidebar={
@@ -761,7 +1046,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
             hasTagFilter={hasTagFilter}
             lists={sidebarLists}
             tags={sidebarTags}
-            onToggle={() => setIsSidebarCollapsed((prev) => !prev)}
+            onToggle={handleSidebarToggle}
             onSelectView={handleSelectView}
             onSelectList={handleSelectList}
             onSelectTag={handleSelectTag}
@@ -787,23 +1072,23 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
         main={
           <section className="todo-main-pane flex h-full min-h-0 flex-col px-3 py-4 sm:px-4 sm:py-5 md:px-7 md:py-7">
             <div className="shrink-0">
-              <div className="flex items-end justify-between border-b border-slate-200/85 pb-4">
+              <div className="flex items-end justify-between border-b border-[color:var(--ui-border-soft)] pb-4">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <button
                     type="button"
-                    aria-label="Abrir menu"
-                  onClick={() => setIsMobileSidebarOpen(true)}
-                  className="todo-main-menu-btn ui-btn ui-btn--secondary ui-btn--icon rounded-2xl md:hidden"
-                >
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
-                    <path d="M6 7h12M6 12h12M6 17h12" stroke="currentColor" strokeWidth="2" />
-                  </svg>
-                </button>
+                    aria-label={t("tasks.mobile.openMenu")}
+                    onClick={handleOpenMobileSidebar}
+                    className="todo-main-menu-btn ui-btn ui-btn--secondary ui-btn--icon rounded-2xl md:hidden"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                      <path d="M6 7h12M6 12h12M6 17h12" stroke="currentColor" strokeWidth="2" />
+                    </svg>
+                  </button>
                 <div>
-                  <h2 className="todo-main-title text-3xl font-black tracking-tight text-slate-900 sm:text-4xl md:text-5xl">
+                  <h2 className="todo-main-title text-3xl font-black tracking-tight text-[color:var(--ui-text-strong)] sm:text-4xl md:text-5xl">
                     {mainTitle}
                   </h2>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--ui-text-soft)]">
                     {filterSummary}
                   </p>
                 </div>
@@ -813,10 +1098,10 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
               </p>
               </div>
 
-              <form onSubmit={handleCreateTask} className="mt-4 space-y-3 border-b border-slate-200/85 pb-4">
-                <div className="todo-quick-add flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/88 p-2.5 shadow-[0_14px_26px_-24px_rgb(15_23_42/0.65)] transition-all duration-200 ease-out hover:border-slate-300 focus-within:border-slate-300 focus-within:shadow-[0_0_0_2px_rgb(15_23_42/0.14)] sm:flex-row sm:items-center sm:gap-2">
+              <form onSubmit={handleCreateTask} className="mt-4 space-y-3 border-b border-[color:var(--ui-border-soft)] pb-4">
+                <div className="todo-quick-add flex flex-col gap-2 rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] p-2.5 shadow-[var(--ui-shadow-sm)] transition-all duration-200 ease-out hover:border-[color:var(--ui-border-strong)] focus-within:border-[color:var(--ui-border-strong)] focus-within:shadow-[var(--ui-field-focus-ring)] sm:flex-row sm:items-center sm:gap-2">
                   <div className="flex min-w-0 flex-1 items-center gap-2 px-2.5 py-1.5">
-                    <span className="text-xl leading-none text-slate-500" aria-hidden>
+                    <span className="text-xl leading-none text-[color:var(--ui-text-muted)]" aria-hidden>
                       +
                     </span>
                     <input
@@ -825,8 +1110,8 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                       onChange={(event) =>
                         setTaskForm((prev) => ({ ...prev, title: event.target.value }))
                       }
-                      placeholder="Add New Task"
-                      className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-base leading-none font-medium text-slate-900 outline-none placeholder:text-slate-400 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+                      placeholder={t("tasks.quickAddPlaceholder")}
+                      className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-base leading-none font-medium text-[color:var(--ui-text-strong)] outline-none placeholder:text-[color:var(--ui-text-soft)] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
                     />
                   </div>
 
@@ -836,20 +1121,14 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                       disabled={isBusy || !taskForm.title.trim() || !canCreateInSelectedList}
                       className="ui-btn ui-btn--primary h-11 min-h-11 w-full rounded-xl px-4 text-sm sm:h-10 sm:min-h-10 sm:w-auto"
                     >
-                      Add
+                      {t("tasks.add")}
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (showTaskDetails) {
-                          setShowListCreator(false);
-                          setShowTagCreator(false);
-                        }
-                        setShowTaskDetails((prev) => !prev);
-                      }}
+                      onClick={handleToggleTaskDetailsForm}
                       className="ui-btn ui-btn--secondary h-11 min-h-11 w-full rounded-xl px-4 text-sm sm:h-10 sm:min-h-10 sm:w-auto"
                     >
-                      {showTaskDetails ? "Less" : "More"}
+                      {showTaskDetails ? t("tasks.less") : t("tasks.more")}
                     </button>
                   </div>
                 </div>
@@ -861,14 +1140,14 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                       onChange={(event) =>
                         setTaskForm((prev) => ({ ...prev, description: event.target.value }))
                       }
-                      placeholder="Descripción (opcional)"
+                      placeholder={t("tasks.quickDescriptionPlaceholder")}
                       rows={3}
                       className="ui-field w-full text-sm"
                     />
 
                     <div className="grid gap-3 md:grid-cols-3">
                       <label className="block space-y-1 text-sm">
-                        <span className="font-semibold text-slate-500">Fecha límite</span>
+                        <span className="font-semibold text-[color:var(--ui-text-muted)]">{t("tasks.dueDate")}</span>
                         <Input
                           type="datetime-local"
                           value={taskForm.dueDate}
@@ -879,7 +1158,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                         />
                       </label>
                       <label className="block space-y-1 text-sm">
-                        <span className="font-semibold text-slate-500">Prioridad</span>
+                        <span className="font-semibold text-[color:var(--ui-text-muted)]">{t("tasks.priority")}</span>
                         <Select
                           value={taskForm.priority}
                           onChange={(event) =>
@@ -892,13 +1171,19 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                         >
                           {priorities.map((priority) => (
                             <option key={priority} value={priority}>
-                              {priority}
+                              {priority === "URGENT"
+                                ? t("tasks.priority.urgent")
+                                : priority === "HIGH"
+                                  ? t("tasks.priority.high")
+                                  : priority === "MEDIUM"
+                                    ? t("tasks.priority.medium")
+                                    : t("tasks.priority.low")}
                             </option>
                           ))}
                         </Select>
                       </label>
                       <label className="block space-y-1 text-sm">
-                        <span className="font-semibold text-slate-500">Estado</span>
+                        <span className="font-semibold text-[color:var(--ui-text-muted)]">{t("tasks.status")}</span>
                         <Select
                           value={taskForm.status}
                           onChange={(event) =>
@@ -911,7 +1196,11 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                         >
                           {statuses.map((status) => (
                             <option key={status} value={status}>
-                              {status}
+                              {status === "IN_PROGRESS"
+                                ? t("tasks.status.inProgress")
+                                : status === "DONE"
+                                  ? t("tasks.status.done")
+                                  : t("tasks.status.todo")}
                             </option>
                           ))}
                         </Select>
@@ -919,7 +1208,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                     </div>
 
                     <label className="block space-y-1 text-sm">
-                      <span className="font-semibold text-slate-500">Lista</span>
+                      <span className="font-semibold text-[color:var(--ui-text-muted)]">{t("tasks.list")}</span>
                       <Select
                         value={taskForm.listId}
                         onChange={(event) =>
@@ -927,12 +1216,20 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                         }
                         className="ui-field w-full"
                       >
-                        <option value="">Sin lista</option>
+                        <option value="">{t("tasks.noList")}</option>
                         {lists.map((list) => (
                           <option key={list.id} value={list.id} disabled={list.canEdit === false}>
                             {list.name}
-                            {list.isShared ? ` · ${list.accessRole}` : ""}
-                            {list.canEdit === false ? " · solo lectura" : ""}
+                            {list.isShared && list.accessRole
+                              ? ` · ${
+                                  list.accessRole === "OWNER"
+                                    ? t("tasks.access.owner")
+                                    : list.accessRole === "EDITOR"
+                                      ? t("tasks.access.editor")
+                                      : t("tasks.access.viewer")
+                                }`
+                              : ""}
+                            {list.canEdit === false ? ` · ${t("tasks.readOnly")}` : ""}
                           </option>
                         ))}
                       </Select>
@@ -940,16 +1237,16 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
 
                     {selectedList && selectedList.canEdit === false ? (
                       <p className="ui-alert ui-alert--danger text-xs">
-                        Esta lista está compartida en modo solo lectura para ti.
+                        {t("tasks.quickReadOnlyList")}
                       </p>
                     ) : null}
 
                     <fieldset className="space-y-2">
-                      <legend className="text-sm font-semibold text-slate-500">Etiquetas</legend>
+                      <legend className="text-sm font-semibold text-[color:var(--ui-text-muted)]">{t("tasks.tags")}</legend>
                       <div className="flex flex-wrap gap-2">
                         {tags.length === 0 ? (
                           <span className="text-muted text-sm">
-                            No hay etiquetas todavía. Usa “+” en el bloque TAGS del menú lateral.
+                            {t("tasks.quickTagsHint")}
                           </span>
                         ) : null}
                         {tags.map((tag) => {
@@ -960,8 +1257,8 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                               key={tag.id}
                               className={`ui-chip cursor-pointer px-3 py-1 text-xs font-semibold ${
                                 selected
-                                  ? "border-accent bg-accent text-white"
-                                  : "text-foreground hover:bg-slate-100"
+                                  ? "border-accent bg-accent text-[color:var(--on-accent)]"
+                                  : "text-foreground hover:bg-[color:var(--ui-surface-3)]"
                               }`}
                             >
                               <input
@@ -986,282 +1283,83 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
                 <div className="ui-empty space-y-2.5">
                   <p>
                     {hasListFilter || hasTagFilter || activeView !== "all"
-                      ? `No hay tareas para ${filterSummary.toLowerCase()}.`
-                      : "No tienes tareas aún."}
+                      ? t("tasks.emptyFiltered", { summary: filterSummary.toLowerCase() })
+                      : t("tasks.emptyDefault")}
                   </p>
                   {hasListFilter || hasTagFilter ? (
-                    <p className="text-xs font-medium text-slate-500">
-                      Quita filtros de listas o etiquetas desde el menú lateral.
+                    <p className="text-xs font-medium text-[color:var(--ui-text-muted)]">
+                      {t("tasks.emptyFiltersHint")}
                     </p>
                   ) : null}
                 </div>
               ) : (
-                <ul className="overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-[0_20px_36px_-30px_rgb(15_23_42/0.75)]">
-                  {filteredTasks.map((task) => {
-                    const isEditing = editingTaskId === task.id;
-
-                    return (
-                      <li
+                <div className="space-y-3">
+                  <ul className="overflow-hidden rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-surface-1)] shadow-[var(--ui-shadow-md)]">
+                    {visibleTasks.map((task) => (
+                      <TaskRow
                         key={task.id}
-                        className={`group border-b border-slate-200/90 p-3 transition-all duration-200 ease-out last:border-b-0 sm:p-4 ${
-                          isEditing
-                            ? "bg-slate-50/90 shadow-[inset_3px_0_0_0_rgb(15_23_42),0_12px_20px_-18px_rgb(15_23_42/0.55)]"
-                            : "bg-white hover:bg-slate-50/70 hover:shadow-[inset_2px_0_0_0_rgb(15_23_42/0.35)]"
-                        }`}
+                        task={task}
+                        isEditing={editingTaskId === task.id}
+                        onToggleCompletion={toggleTaskCompletion}
+                        onToggleDetails={toggleTaskDetails}
+                      />
+                    ))}
+                  </ul>
+                  {hasMoreVisibleTasks ? (
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleLoadMoreTasks}
+                        className="ui-btn ui-btn--secondary h-10 min-h-10 rounded-xl px-4 text-sm"
+                        aria-label={t("tasks.loadMoreAria", {
+                          count: Math.min(TASKS_RENDER_STEP, remainingVisibleTaskCount),
+                        })}
                       >
-                        <div
-                          className="flex cursor-pointer items-start justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => void toggleTaskCompletion(task)}
-                          onKeyDown={(event) => {
-                            if (event.target !== event.currentTarget) {
-                              return;
-                            }
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              void toggleTaskCompletion(task);
-                            }
-                          }}
-                        >
-                          <div className="flex min-w-0 items-start gap-3">
-                            <input
-                              type="checkbox"
-                              aria-label={`Marcar ${task.title}`}
-                              checked={task.isCompleted}
-                              disabled={!task.canEdit}
-                              onClick={(event) => event.stopPropagation()}
-                              onChange={() => void toggleTaskCompletion(task)}
-                              className="accent-success mt-1 h-4 w-4 rounded-[4px]"
-                            />
-                            <div className="min-w-0 text-left">
-                              <p
-                                className={`truncate text-base leading-tight font-semibold transition-colors duration-200 sm:text-lg md:text-[22px] ${
-                                  task.isCompleted ? "text-slate-400 line-through" : "text-slate-900"
-                                }`}
-                              >
-                                {task.title}
-                              </p>
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                {task.dueDate ? (
-                                  <span className="ui-chip ui-chip--meta">
-                                    {new Date(task.dueDate).toLocaleDateString("es-ES")}
-                                  </span>
-                                ) : null}
-                                <span className="ui-chip ui-chip--meta">
-                                  {task.priority}
-                                </span>
-                                <span className="ui-chip ui-chip--meta">
-                                  {task.status}
-                                </span>
-                                {task.list ? (
-                                  <span className="ui-chip ui-chip--meta inline-flex items-center gap-1">
-                                    <span
-                                      className="h-2 w-2 rounded-[3px]"
-                                      style={{ backgroundColor: task.list.color ?? "#f87171" }}
-                                    />
-                                    {task.list.name}
-                                  </span>
-                                ) : (
-                                  <span className="ui-chip ui-chip--meta">
-                                    Sin lista
-                                  </span>
-                                )}
-                                {task.tags[0] ? (
-                                  <span className="ui-chip ui-chip--meta">
-                                    {task.tags[0].tag.name}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex shrink-0 items-center gap-2">
-                            <button
-                              type="button"
-                              disabled={!task.canEdit}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                toggleTaskDetails(task);
-                              }}
-                              aria-label={`${isEditing ? "Cerrar" : "Abrir"} detalle de ${task.title}`}
-                              className={`ui-btn ui-btn--secondary ui-btn--icon h-9 w-9 rounded-xl text-slate-500 opacity-90 transition-all duration-200 group-hover:opacity-100 disabled:opacity-50 ${
-                                isEditing ? "ui-btn--active-dark" : ""
-                              }`}
-                            >
-                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
-                                <path
-                                  d={isEditing ? "m14 7-5 5 5 5" : "m10 7 5 5-5 5"}
-                                  stroke="currentColor"
-                                  strokeWidth="1.8"
-                                />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-
-                        {isEditing && showInlineEditForm ? (
-                          <form
-                            onSubmit={handleSaveEdit}
-                            className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-white p-3"
-                          >
-                            <Input
-                              required
-                              value={editingForm.title}
-                              onChange={(event) =>
-                                setEditingForm((prev) => ({ ...prev, title: event.target.value }))
-                              }
-                              className="ui-field w-full text-sm"
-                            />
-                            <Textarea
-                              rows={2}
-                              value={editingForm.description}
-                              onChange={(event) =>
-                                setEditingForm((prev) => ({ ...prev, description: event.target.value }))
-                              }
-                              className="ui-field w-full text-sm"
-                            />
-                            <div className="grid gap-3 md:grid-cols-3">
-                              <Input
-                                type="datetime-local"
-                                value={editingForm.dueDate}
-                                onChange={(event) =>
-                                  setEditingForm((prev) => ({ ...prev, dueDate: event.target.value }))
-                                }
-                                className="ui-field text-sm"
-                              />
-                              <Select
-                                value={editingForm.priority}
-                                onChange={(event) =>
-                                  setEditingForm((prev) => ({
-                                    ...prev,
-                                    priority: event.target.value as Priority,
-                                  }))
-                                }
-                                className="ui-field text-sm"
-                              >
-                                {priorities.map((priority) => (
-                                  <option key={priority} value={priority}>
-                                    {priority}
-                                  </option>
-                                ))}
-                              </Select>
-                              <Select
-                                value={editingForm.status}
-                                onChange={(event) =>
-                                  setEditingForm((prev) => ({
-                                    ...prev,
-                                    status: event.target.value as Status,
-                                  }))
-                                }
-                                className="ui-field text-sm"
-                              >
-                                {statuses.map((status) => (
-                                  <option key={status} value={status}>
-                                    {status}
-                                  </option>
-                                ))}
-                              </Select>
-                            </div>
-                            <Select
-                              value={editingForm.listId}
-                              onChange={(event) =>
-                                setEditingForm((prev) => ({ ...prev, listId: event.target.value }))
-                              }
-                              className="ui-field w-full text-sm"
-                            >
-                              <option value="">Sin lista</option>
-                              {lists.map((list) => (
-                                <option key={list.id} value={list.id} disabled={list.canEdit === false}>
-                                  {list.name}
-                                  {list.isShared ? ` · ${list.accessRole}` : ""}
-                                  {list.canEdit === false ? " · solo lectura" : ""}
-                                </option>
-                              ))}
-                            </Select>
-                            <div className="flex flex-wrap gap-2">
-                              {tags.map((tag) => {
-                                const selected = editingForm.tagIds.includes(tag.id);
-
-                                return (
-                                  <label
-                                    key={tag.id}
-                                    className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-semibold ${
-                                      selected
-                                        ? "border-accent bg-accent text-white"
-                                        : "border-border bg-surface text-foreground"
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={selected}
-                                      onChange={() => toggleFormTag(tag.id, "edit")}
-                                      className="sr-only"
-                                    />
-                                    {tag.name}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                type="submit"
-                                disabled={isBusy || !editingForm.title.trim()}
-                                className="bg-primary-strong hover:bg-primary rounded-lg px-3 py-2 text-xs font-semibold text-white transition disabled:opacity-60"
-                              >
-                                Guardar cambios
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingTaskId(null)}
-                                className="border-border/80 hover:bg-surface rounded-lg border px-3 py-2 text-xs font-semibold transition"
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          </form>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
+                        {t("tasks.loadMore", {
+                          count: Math.min(TASKS_RENDER_STEP, remainingVisibleTaskCount),
+                        })}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleShowAllTasks}
+                        className="ui-btn ui-btn--ghost h-10 min-h-10 rounded-xl px-3 text-sm"
+                        aria-label={t("tasks.showAllAria", { count: remainingVisibleTaskCount })}
+                      >
+                        {t("tasks.showAll", { count: remainingVisibleTaskCount })}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               )}
             </div>
           </section>
         }
         detail={
-          <TaskDetailPanel
-            task={selectedTask}
-            form={editingForm}
-            lists={lists}
-            tags={tags}
-            isBusy={isBusy}
-            onSave={handleSaveEdit}
-            onDelete={() => {
-              if (selectedTask) {
-                void handleDeleteTask(selectedTask);
-              }
-            }}
-            onClose={() => setEditingTaskId(null)}
-            onChange={(field, value) =>
-              setEditingForm((prev) => ({
-                ...prev,
-                [field]: value,
-              }))
-            }
-            onToggleTag={(tagId) => toggleFormTag(tagId, "edit")}
-          />
+          selectedTask ? (
+            <TaskDetailPanel
+              task={selectedTask}
+              form={editingForm}
+              lists={lists}
+              tags={tags}
+              isBusy={isBusy}
+              onSave={handleSaveEdit}
+              onDelete={handleDeleteSelectedTask}
+              onClose={handleCloseEditing}
+              onChange={handleEditFieldChange}
+              onToggleTag={handleToggleEditTag}
+            />
+          ) : null
         }
       />
 
       <div className="todo-mobile-overlay" data-open={isMobileSidebarOpen}>
         <button
           type="button"
-          aria-label="Cerrar menu"
+          aria-label={t("tasks.mobile.closeMenu")}
           className="todo-mobile-backdrop"
-          onClick={() => setIsMobileSidebarOpen(false)}
+          onClick={handleCloseMobileSidebar}
         />
-        <aside className="todo-mobile-drawer" role="dialog" aria-modal="true" aria-label="Menu">
+        <aside className="todo-mobile-drawer" role="dialog" aria-modal="true" aria-label={t("tasks.mobile.menu")}>
           <SidebarNav
             collapsed={false}
             mobile
@@ -1275,7 +1373,7 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
             hasTagFilter={hasTagFilter}
             lists={sidebarLists}
             tags={sidebarTags}
-            onToggle={() => setIsMobileSidebarOpen(false)}
+            onToggle={handleCloseMobileSidebar}
             onSelectView={handleSelectView}
             onSelectList={handleSelectList}
             onSelectTag={handleSelectTag}
@@ -1303,37 +1401,30 @@ export function TasksWorkspace({ initialTasks, initialLists, initialTags }: Task
       <div className="todo-detail-overlay" data-open={Boolean(selectedTask)}>
         <button
           type="button"
-          aria-label="Cerrar detalle"
+          aria-label={t("tasks.mobile.closeDetail")}
           className="todo-detail-backdrop"
-          onClick={() => setEditingTaskId(null)}
+          onClick={handleCloseEditing}
         />
         <aside
           className="todo-detail-sheet"
           role="dialog"
           aria-modal="true"
-          aria-label="Detalle de tarea"
+          aria-label={t("tasks.mobile.detail")}
         >
-          <TaskDetailPanel
-            task={selectedTask}
-            form={editingForm}
-            lists={lists}
-            tags={tags}
-            isBusy={isBusy}
-            onSave={handleSaveEdit}
-            onDelete={() => {
-              if (selectedTask) {
-                void handleDeleteTask(selectedTask);
-              }
-            }}
-            onClose={() => setEditingTaskId(null)}
-            onChange={(field, value) =>
-              setEditingForm((prev) => ({
-                ...prev,
-                [field]: value,
-              }))
-            }
-            onToggleTag={(tagId) => toggleFormTag(tagId, "edit")}
-          />
+          {selectedTask ? (
+            <TaskDetailPanel
+              task={selectedTask}
+              form={editingForm}
+              lists={lists}
+              tags={tags}
+              isBusy={isBusy}
+              onSave={handleSaveEdit}
+              onDelete={handleDeleteSelectedTask}
+              onClose={handleCloseEditing}
+              onChange={handleEditFieldChange}
+              onToggleTag={handleToggleEditTag}
+            />
+          ) : null}
         </aside>
       </div>
     </section>

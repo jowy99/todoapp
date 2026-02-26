@@ -3,12 +3,40 @@ import { requireCurrentUser } from "@/lib/auth/session";
 import { handleRouteError, jsonData, parseRequestJson } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 
+const MAX_PROFILE_IMAGE_VALUE_LENGTH = 800_000;
+
+function isAllowedProfileImageValue(value: string) {
+  const normalized = value.trim();
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return true;
+  }
+
+  return /^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(normalized);
+}
+
 const profileUpdateSchema = z
   .object({
     displayName: z.string().trim().min(2).max(60).optional(),
     bio: z.string().trim().max(280).optional(),
-    avatarUrl: z.string().trim().url().max(2048).optional().nullable(),
-    bannerUrl: z.string().trim().url().max(2048).optional().nullable(),
+    avatarUrl: z
+      .string()
+      .trim()
+      .max(MAX_PROFILE_IMAGE_VALUE_LENGTH)
+      .refine(isAllowedProfileImageValue, {
+        message: "Avatar must be an http(s) URL or a base64 image.",
+      })
+      .optional()
+      .nullable(),
+    bannerUrl: z
+      .string()
+      .trim()
+      .max(MAX_PROFILE_IMAGE_VALUE_LENGTH)
+      .refine(isAllowedProfileImageValue, {
+        message: "Banner must be an http(s) URL or a base64 image.",
+      })
+      .optional()
+      .nullable(),
     isPublic: z.boolean().optional(),
   })
   .refine((value) => Object.values(value).some((fieldValue) => fieldValue !== undefined), {

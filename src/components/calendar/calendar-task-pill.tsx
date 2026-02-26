@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { memo } from "react";
 
 type CalendarTaskPillProps = {
   href: string;
@@ -9,7 +10,7 @@ type CalendarTaskPillProps = {
   className?: string;
 };
 
-export function CalendarTaskPill({
+export const CalendarTaskPill = memo(function CalendarTaskPill({
   href,
   title,
   toneClass,
@@ -20,12 +21,12 @@ export function CalendarTaskPill({
   return (
     <Link
       href={href}
-      className={`group flex min-w-0 items-center gap-2 overflow-hidden rounded-lg border border-black/10 leading-tight shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:shadow-sm ${
+      className={`group flex min-w-0 items-center gap-2 overflow-hidden rounded-lg border border-[color:var(--ui-border-soft)] leading-tight shadow-[var(--ui-shadow-xs)] transition-all duration-200 ease-out hover:-translate-y-[1px] hover:shadow-[var(--ui-shadow-sm)] ${
         compact ? "px-2 py-1 text-[11px]" : "px-2 py-1 text-[12px]"
       } ${toneClass} ${className}`}
     >
-      <span className="min-w-0 flex-1 truncate font-medium text-black/80">{title}</span>
-      {timeLabel ? <span className="shrink-0 tabular-nums text-black/60">{timeLabel}</span> : null}
+      <span className="min-w-0 flex-1 truncate font-medium text-[color:var(--ui-text-strong)]">{title}</span>
+      {timeLabel ? <span className="shrink-0 tabular-nums text-[color:var(--ui-text-muted)]">{timeLabel}</span> : null}
     </Link>
   );
-}
+});

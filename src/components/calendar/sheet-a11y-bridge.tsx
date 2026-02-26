@@ -24,7 +24,7 @@ export function SheetA11yBridge({ closeHref, initialFocusId }: SheetA11yBridgePr
         return;
       }
       event.preventDefault();
-      router.push(closeHref);
+      router.replace(closeHref);
     }
 
     window.addEventListener("keydown", onKeyDown);

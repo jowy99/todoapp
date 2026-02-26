@@ -142,6 +142,7 @@ type SeedConfig = {
 type SeedUser = {
   id: string;
   email: string;
+  username: string;
   displayName: string;
 };
 
@@ -327,6 +328,17 @@ function toDisplayName(email: string) {
   const words = cleaned.split(" ").filter(Boolean);
   const normalized = words.length > 0 ? words : ["demo", "user"];
   return normalized.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+
+function toUsername(email: string) {
+  const localPart = email.split("@")[0] ?? "user";
+  const base = localPart
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^[._-]+|[._-]+$/g, "")
+    .slice(0, 24);
+  const normalized = base.length > 0 ? base : "user";
+  return `${normalized}-${hashStringToSlug(email).slice(0, 6)}`;
 }
 
 function buildSeedConfig() {
@@ -1015,14 +1027,17 @@ async function ensureSeedUsers(config: SeedConfig) {
     }
 
     const displayName = toDisplayName(email);
+    const username = toUsername(email);
     const user = await prisma.user.upsert({
       where: { email },
       update: {
         displayName,
+        username,
         passwordHash,
       },
       create: {
         email,
+        username,
         passwordHash,
         displayName,
         profile: {
@@ -1035,12 +1050,14 @@ async function ensureSeedUsers(config: SeedConfig) {
       select: {
         id: true,
         email: true,
+        username: true,
         displayName: true,
       },
     });
     users.push({
       id: user.id,
       email: user.email,
+      username: user.username ?? username,
       displayName: user.displayName ?? displayName,
     });
   }

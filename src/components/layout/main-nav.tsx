@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useT } from "@/components/settings/locale-provider";
 
 type NavItem = {
   href: string;
@@ -22,9 +23,10 @@ function isActivePath(pathname: string, href: string) {
 
 export function MainNav({ items }: MainNavProps) {
   const pathname = usePathname();
+  const t = useT();
 
   return (
-    <nav aria-label="Principal" className="min-w-0">
+    <nav aria-label={t("nav.primary")} className="min-w-0">
       <ul className="ui-nav-shell flex items-center justify-between gap-1 p-1">
         {items.map((item) => {
           const isActive = isActivePath(pathname, item.href);

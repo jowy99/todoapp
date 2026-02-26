@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
-  email: z.string().trim().email().max(255),
+  identifier: z.string().trim().min(3).max(255),
   password: z.string().min(8).max(72),
 });
 
@@ -26,13 +26,19 @@ export async function POST(request: Request) {
     }
 
     const body = await parseRequestJson(request, loginSchema);
-    const email = body.email.toLowerCase();
+    const normalizedIdentifier = body.identifier.toLowerCase();
 
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: normalizedIdentifier },
+          { username: normalizedIdentifier },
+        ],
+      },
       select: {
         id: true,
         email: true,
+        username: true,
         passwordHash: true,
         displayName: true,
         createdAt: true,
@@ -40,13 +46,13 @@ export async function POST(request: Request) {
     });
 
     if (!user?.passwordHash) {
-      throw new HttpError(401, "Invalid email or password.");
+      throw new HttpError(401, "Invalid username/email or password.");
     }
 
     const isValidPassword = await verifyPassword(body.password, user.passwordHash);
 
     if (!isValidPassword) {
-      throw new HttpError(401, "Invalid email or password.");
+      throw new HttpError(401, "Invalid username/email or password.");
     }
 
     await createSessionForUser(user.id);
@@ -55,6 +61,7 @@ export async function POST(request: Request) {
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         displayName: user.displayName,
         createdAt: user.createdAt,
       },

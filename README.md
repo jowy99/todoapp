@@ -59,81 +59,14 @@ Abre `http://localhost:3000`.
 
 - Tokens, motion y reglas responsive: `docs/ui.md`
 
-## Integraciones
-
-### Google Calendar (OAuth + API)
-
-Configura en `.env`:
-
-```env
-APP_BASE_URL="http://localhost:3000"
-GOOGLE_CLIENT_ID="..."
-GOOGLE_CLIENT_SECRET="..."
-GOOGLE_REDIRECT_URI="http://localhost:3000/api/integrations/google/callback"
-INTEGRATION_ENCRYPTION_KEY=""
-```
-
-Pasos:
-
-1. En Google Cloud, crea OAuth Client (Web).
-2. Añade redirect URI: `http://localhost:3000/api/integrations/google/callback`
-3. En la app abre `/integrations` y pulsa **Conectar Google**.
-4. Pulsa **Sync manual** para empujar tareas con fecha a Google Calendar.
-
-### Apple Calendar vía feed ICS privado
-
-1. Abre `/integrations`.
-2. Copia `URL del feed ICS`.
-3. En Apple Calendar: `File -> New Calendar Subscription...` y pega la URL.
-4. Si necesitas invalidar la URL, pulsa **Rotar token ICS**.
-
-Endpoint ICS:
-
-- `GET /api/feeds/ics/:token`
-
-### Alternativas para Apple Notes / Recordatorios
-
-#### Exportaciones directas
+## Exportaciones
 
 - JSON: `GET /api/export/tasks.json`
 - CSV: `GET /api/export/tasks.csv`
 
-Uso práctico:
-
-- Importar CSV en herramientas de notas.
-- Consumir JSON desde Shortcuts para transformar y guardar en Notes.
-
-#### Webhook para Shortcuts (ingesta de tareas)
-
-Desde `/integrations` copia `Endpoint de ingesta`.
-
-Endpoint:
-
-- `POST /api/integrations/webhook/:token/tasks`
-
-Payload ejemplo:
-
-```json
-{
-  "title": "Comprar pan",
-  "dueDate": "2026-03-01T18:00:00.000Z",
-  "priority": "MEDIUM",
-  "listName": "Inbox"
-}
-```
-
-Flujo recomendado con Apple Shortcuts:
-
-1. Acción `Get Contents of URL` (método `POST`).
-2. URL: endpoint webhook con token.
-3. Body JSON como el ejemplo.
-4. Ejecuta desde Siri, pantalla compartida o widget.
-
 ## Seguridad local
 
 - Sesiones en cookie HTTP-only.
-- Feed ICS y webhook protegidos por token rotatorio.
-- Si defines `INTEGRATION_ENCRYPTION_KEY`, tokens OAuth se guardan cifrados en DB.
 
 ## Publicar en GitHub
 

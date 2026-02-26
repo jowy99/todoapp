@@ -7,8 +7,15 @@ import { checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 
 const registerSchema = z.object({
   email: z.string().trim().email().max(255),
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3)
+    .max(32)
+    .regex(/^[a-z0-9](?:[a-z0-9._-]{1,30}[a-z0-9])?$/),
   password: z.string().min(8).max(72),
-  displayName: z.string().trim().min(2).max(60).optional(),
+  displayName: z.string().trim().min(2).max(60),
 });
 
 export async function POST(request: Request) {
@@ -28,15 +35,21 @@ export async function POST(request: Request) {
 
     const body = await parseRequestJson(request, registerSchema);
     const email = body.email.toLowerCase();
-    const displayName = body.displayName?.trim() || null;
+    const username = body.username.trim().toLowerCase();
+    const displayName = body.displayName.trim();
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { username },
+        ],
+      },
       select: { id: true },
     });
 
     if (existingUser) {
-      throw new HttpError(409, "This email is already registered.");
+      throw new HttpError(409, "This email or username is already in use.");
     }
 
     const passwordHash = await hashPassword(body.password);
@@ -44,6 +57,7 @@ export async function POST(request: Request) {
     const user = await prisma.user.create({
       data: {
         email,
+        username,
         passwordHash,
         displayName,
         profile: {
@@ -61,6 +75,7 @@ export async function POST(request: Request) {
       select: {
         id: true,
         email: true,
+        username: true,
         displayName: true,
         createdAt: true,
       },
